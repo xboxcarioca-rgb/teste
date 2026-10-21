@@ -19,7 +19,7 @@ Depois, abra `http://localhost:4173`.
 3. Cole a chave na janela do app e escolha **Salvar e continuar**.
 4. Escreva o prompt e use **Gerar imagens**.
 
-A chave é mantida somente em `sessionStorage` do navegador, não é adicionada ao código ou ao repositório. As imagens são solicitadas diretamente ao endpoint oficial `https://gen.pollinations.ai`, com o cabeçalho `Authorization` — a chave não é anexada à URL.
+A chave é mantida somente em `sessionStorage` do navegador e não é adicionada ao código ou ao repositório. Para a geração padrão no navegador, o app usa o endpoint oficial `https://gen.pollinations.ai/image` com uma chave `pk_` na própria requisição de mídia — abordagem indicada pela Pollinations para clientes de navegador, sem preflight CORS. Portanto, use somente uma chave de navegador com orçamento/permissões limitados; nunca uma chave secreta de servidor.
 
 - Sem referência, o app começa no modelo `black-forest-labs/flux.1-schnell`, uma opção de maior compatibilidade para gerar imagens reais.
 - Com referência, o app envia o arquivo local ao endpoint de edição para que a IA use a imagem como guia.

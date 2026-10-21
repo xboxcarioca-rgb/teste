@@ -483,6 +483,17 @@
       return referenceFile ? 'black-forest-labs/flux.1-kontext-pro' : 'black-forest-labs/flux.1-schnell';
     }
 
+    function loadRemoteImage(url, mime) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const timeout = setTimeout(() => reject(new Error('A IA demorou mais que o esperado. Tente novamente em instantes.')), 120000);
+        img.decoding = 'async';
+        img.onload = () => { clearTimeout(timeout); resolve({ src: url, mime, remote: true, element: img }); };
+        img.onerror = () => { clearTimeout(timeout); reject(new Error('A imagem não pôde ser carregada. Verifique a chave pk_, a permissão de imagens e bloqueadores do navegador.')); };
+        img.src = url;
+      });
+    }
+
     function composedPrompt() {
       const style = `estilo ${currentStyle.toLowerCase()}`;
       const transparentInstruction = transparent ? ', sujeito isolado, sem cenário, fundo transparente' : '';
@@ -523,23 +534,19 @@
         throw new Error('A IA não retornou uma imagem utilizável.');
       }
 
-      // GET retorna o arquivo da imagem diretamente e aceita `transparent=true` para modelos compatíveis.
+      // Um elemento <img> não exige preflight CORS. Para apps no navegador, a própria Pollinations
+      // documenta a chave na query deste endpoint GET de mídia.
       const params = new URLSearchParams({
         model,
         width: String(width),
         height: String(height),
         seed: String(seed),
-        safe: 'true'
+        safe: 'true',
+        key: apiKey
       });
       if (transparent) params.set('transparent', 'true');
-      response = await fetch(`${POLLINATIONS_API}/image/${encodeURIComponent(prompt)}?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        cache: 'no-store'
-      });
-      if (!response.ok) throw new Error(`Erro ${response.status}: ${await readError(response, 'A IA não conseguiu gerar a imagem.')}`);
-      const blob = await response.blob();
-      if (!blob.type.startsWith('image/')) throw new Error('A resposta recebida não é uma imagem.');
-      return { src: await blobToDataUrl(blob), mime: blob.type };
+      const url = `${POLLINATIONS_API}/image/${encodeURIComponent(prompt)}?${params.toString()}`;
+      return loadRemoteImage(url, transparent ? 'image/png' : 'image/jpeg');
     }
 
     function cardForImage(image, index) {
@@ -547,8 +554,8 @@
       const png = image.mime.includes('png');
       card.className = 'result-card' + (transparent && png ? ' checkerboard' : '');
       card.dataset.id = `lumina-${Date.now()}-${index}`;
-      const img = document.createElement('img');
-      img.src = image.src;
+      const img = image.element || document.createElement('img');
+      if (!image.element) img.src = image.src;
       img.alt = `Imagem criada por IA, variação ${index + 1}`;
       card.appendChild(img);
       const meta = document.createElement('div');
@@ -564,9 +571,20 @@
 
     async function downloadImage(image) {
       try {
+        const extension = image.mime.includes('png') ? 'png' : image.mime.includes('webp') ? 'webp' : 'jpg';
+        // A imagem remota já está carregada no navegador; abrir o arquivo evita uma segunda chamada CORS.
+        if (image.remote) {
+          const a = document.createElement('a');
+          a.download = `lumina-${Date.now()}.${extension}`;
+          a.href = image.src;
+          a.target = '_blank';
+          a.rel = 'noreferrer';
+          a.click();
+          showToast('O arquivo foi aberto para baixar ou salvar.');
+          return;
+        }
         const response = await fetch(image.src);
         const blob = await response.blob();
-        const extension = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.download = `lumina-${Date.now()}.${extension}`;
