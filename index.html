@@ -366,8 +366,8 @@
             </div>
 
             <div class="transparent-row">
-              <div class="left"><span class="checker-icon"></span><div><span class="transparent-title">Fundo transparente</span><span class="transparent-detail">Exporte em PNG sem fundo</span></div></div>
-              <button class="switch on" id="transparentSwitch" role="switch" aria-checked="true"><span></span></button>
+              <div class="left"><span class="checker-icon"></span><div><span class="transparent-title">Fundo transparente</span><span class="transparent-detail">Requer modelo com suporte a PNG alfa</span></div></div>
+              <button class="switch" id="transparentSwitch" role="switch" aria-checked="false"><span></span></button>
             </div>
             <button class="generate-button" id="generateButton"><svg class="icon"><use href="#i-spark"/></svg><span>Gerar imagens</span></button>
           </section>
@@ -391,8 +391,8 @@
       </div>
       <p>Use a sua própria chave da Pollinations para gerar imagens reais. A chave fica somente nesta sessão do navegador e nunca é salva no projeto.</p>
       <label for="apiKeyInput">Chave de API</label>
-      <input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk_..." />
-      <div class="api-help">Crie uma chave pessoal no <a href="https://enter.pollinations.ai/keys" target="_blank" rel="noreferrer">portal da Pollinations</a>. O site não impõe quantidade de gerações; disponibilidade e saldo seguem a sua conta no provedor.</div>
+      <input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="pk_..." />
+      <div class="api-help">Crie uma chave de navegador <strong>pk_</strong> no <a href="https://enter.pollinations.ai/keys" target="_blank" rel="noreferrer">portal da Pollinations</a> e habilite o uso de imagens. O site não impõe quantidade de gerações; disponibilidade, permissões e saldo seguem a sua conta no provedor.</div>
       <div class="dialog-actions"><button class="button-secondary" id="clearApiKey">Desconectar</button><button class="button-primary" id="saveApiKey">Salvar e continuar</button></div>
     </section>
   </div>
@@ -415,7 +415,7 @@
     const referenceName = $('#referenceName');
     const toast = $('#toast');
     const toastText = $('#toastText');
-    let transparent = true;
+    let transparent = false;
     let currentRatio = 'square';
     let currentStyle = 'Editorial';
     let generated = 0;
@@ -458,6 +458,16 @@
       });
     }
 
+    function readableFailure(reason) {
+      const message = reason?.message || 'A IA não respondeu.';
+      if (/failed to fetch|networkerror/i.test(message)) return 'Não foi possível alcançar a IA. Confira a conexão, desative bloqueadores para gen.pollinations.ai e tente novamente.';
+      if (/erro 401|unauthor/i.test(message)) return 'Chave não autorizada. Use uma chave pk_ ativa, com acesso à categoria de imagens.';
+      if (/erro 402|payment|required|saldo|credit/i.test(message)) return 'A chave foi aceita, mas não há saldo/permissão para o modelo selecionado. Tente gerar sem fundo transparente ou revise sua conta.';
+      if (/erro 403|forbidden/i.test(message)) return 'Sua chave não tem permissão para este modelo. Verifique as permissões de imagem no portal da Pollinations.';
+      if (/erro 400/i.test(message) && transparent) return 'O modelo da sua chave não aceita transparência. Desligue “Fundo transparente” e gere novamente.';
+      return message.length > 220 ? `${message.slice(0, 217)}…` : message;
+    }
+
     function blobToDataUrl(blob) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -468,9 +478,9 @@
     }
 
     function imageModel() {
-      // A Pollinations documenta transparência nos modelos GPT Image. Kontext recebe a referência no endpoint de edição.
+      // Flux Schnell é a opção padrão mais ampla. Transparência real é um recurso específico de modelos GPT Image.
       if (transparent) return 'openai/gpt-image-2.5-flare';
-      return referenceFile ? 'black-forest-labs/flux.1-kontext-pro' : 'tongyi-mai/z-image-turbo';
+      return referenceFile ? 'black-forest-labs/flux.1-kontext-pro' : 'black-forest-labs/flux.1-schnell';
     }
 
     function composedPrompt() {
@@ -500,7 +510,7 @@
           headers: { Authorization: `Bearer ${apiKey}` },
           body: form
         });
-        if (!response.ok) throw new Error(await readError(response, 'Não foi possível aplicar essa referência.'));
+        if (!response.ok) throw new Error(`Erro ${response.status}: ${await readError(response, 'Não foi possível aplicar essa referência.')}`);
         const result = await response.json();
         const item = result?.data?.[0];
         if (item?.b64_json) return { src: `data:image/png;base64,${item.b64_json}`, mime: 'image/png' };
@@ -522,10 +532,11 @@
         safe: 'true'
       });
       if (transparent) params.set('transparent', 'true');
-      // A documentação da Pollinations permite a chave na query nos endpoints GET de imagem.
-      params.set('key', apiKey);
-      response = await fetch(`${POLLINATIONS_API}/image/${encodeURIComponent(prompt)}?${params.toString()}`);
-      if (!response.ok) throw new Error(await readError(response, 'A IA não conseguiu gerar a imagem.'));
+      response = await fetch(`${POLLINATIONS_API}/image/${encodeURIComponent(prompt)}?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        cache: 'no-store'
+      });
+      if (!response.ok) throw new Error(`Erro ${response.status}: ${await readError(response, 'A IA não conseguiu gerar a imagem.')}`);
       const blob = await response.blob();
       if (!blob.type.startsWith('image/')) throw new Error('A resposta recebida não é uma imagem.');
       return { src: await blobToDataUrl(blob), mime: blob.type };
@@ -591,7 +602,7 @@
         historyCount.textContent = generated;
         showToast(failed.length ? `${images.length} imagem(ns) criada(s). Algumas variações falharam.` : `${images.length} imagem(ns) criada(s) por IA.`);
       } else {
-        const detail = failed[0]?.reason?.message || 'Verifique sua chave, saldo e conexão com a IA.';
+        const detail = readableFailure(failed[0]?.reason);
         showEmpty('Não foi possível criar a imagem', detail);
         showToast('A geração falhou. Confira os detalhes na tela.');
       }
@@ -622,7 +633,7 @@
     apiDialogBackdrop.addEventListener('click', event => { if (event.target === apiDialogBackdrop) closeApiDialog(); });
     $('#saveApiKey').addEventListener('click', () => {
       const value = apiKeyInput.value.trim();
-      if (value.length < 8) { showToast('Cole uma chave de API válida para continuar.'); apiKeyInput.focus(); return; }
+      if (!/^(pk_|sk_)/.test(value)) { showToast('Use uma chave da Pollinations que comece com pk_ ou sk_.'); apiKeyInput.focus(); return; }
       apiKey = value;
       sessionStorage.setItem('lumina.pollinationsKey', apiKey);
       updateConnectionUI();
@@ -648,7 +659,7 @@
       transparent = !transparent;
       transparentSwitch.classList.toggle('on', transparent);
       transparentSwitch.setAttribute('aria-checked', transparent);
-      showToast(transparent ? 'Fundo transparente será solicitado à IA.' : 'A próxima geração terá fundo de cena.');
+      showToast(transparent ? 'Transparência ativada: usa um modelo GPT Image compatível e pode exigir saldo.' : 'Modo padrão ativado: maior compatibilidade com a sua chave.');
     });
     generateButton.addEventListener('click', () => generateImages());
     $('#refreshButton').addEventListener('click', () => generateImages());
