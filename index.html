@@ -235,6 +235,11 @@
     .api-dialog input:focus { border-color:rgba(155,125,255,.8); box-shadow:0 0 0 3px rgba(136,105,244,.12); }
     .api-help { margin: 10px 0 18px; color:var(--soft); font-size:10px; line-height:1.45; }
     .api-help a { color:var(--violet-2); text-underline-offset:2px; }
+    .callback-box { margin-top: 10px; padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: #101015; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px 8px; }
+    .callback-box span { grid-column: 1 / -1; color: var(--soft); font-size: 10px; }
+    .callback-box code { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #cbc2ef; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+    .copy-callback { border: 1px solid var(--line); border-radius: 6px; background: var(--panel-3); color: #e2d9ff; padding: 4px 6px; font-size: 10px; font-weight: 600; }
+    .copy-callback:hover { border-color: rgba(190,170,255,.62); }
     .dialog-actions { display:flex; justify-content:space-between; gap:10px; }
     .button-secondary, .button-primary { height:38px; padding:0 13px; border-radius:9px; font-size:12px; font-weight:650; }
     .button-secondary { color:var(--muted); border:1px solid var(--line); background:transparent; }
@@ -389,11 +394,12 @@
         <div class="dialog-title"><div class="dialog-icon"><svg class="icon"><use href="#i-spark"/></svg></div><h2 id="apiDialogTitle">Conectar geração por IA</h2></div>
         <button class="dialog-close" id="closeApiDialog" aria-label="Fechar"><svg class="icon"><use href="#i-x"/></svg></button>
       </div>
-      <p>Use a sua própria chave da Pollinations para gerar imagens reais. A chave fica somente nesta sessão do navegador e nunca é salva no projeto.</p>
-      <label for="apiKeyInput">Chave de API</label>
+      <p>Conecte sua conta da Pollinations com segurança. O site redireciona você para autorizar o uso de imagens e recebe uma chave temporária somente após a aprovação.</p>
+      <label for="apiKeyInput">App Key da Pollinations</label>
       <input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="pk_..." />
-      <div class="api-help">Crie uma chave de navegador <strong>pk_</strong> no <a href="https://enter.pollinations.ai/keys" target="_blank" rel="noreferrer">portal da Pollinations</a> e habilite o uso de imagens. O site não impõe quantidade de gerações; disponibilidade, permissões e saldo seguem a sua conta no provedor.</div>
-      <div class="dialog-actions"><button class="button-secondary" id="clearApiKey">Desconectar</button><button class="button-primary" id="saveApiKey">Salvar e continuar</button></div>
+      <div class="callback-box"><span>Cadastre esta URL de retorno na App Key:</span><code id="callbackUrl"></code><button class="copy-callback" id="copyCallback" type="button">Copiar</button></div>
+      <div class="api-help">Crie uma <strong>App Key (pk_)</strong> em <a href="https://enter.pollinations.ai/keys" target="_blank" rel="noreferrer">enter.pollinations.ai/keys</a>, adicione a URL acima em <em>Redirect URI</em> e habilite o uso de imagens. Não cole uma chave secreta <strong>sk_</strong> aqui.</div>
+      <div class="dialog-actions"><button class="button-secondary" id="clearApiKey">Desconectar</button><button class="button-primary" id="saveApiKey">Conectar conta</button></div>
     </section>
   </div>
 
@@ -435,7 +441,16 @@
     }
 
     const POLLINATIONS_API = 'https://gen.pollinations.ai';
+    const POLLINATIONS_AUTH = 'https://enter.pollinations.ai/authorize';
     let apiKey = sessionStorage.getItem('lumina.pollinationsKey') || '';
+    let appKey = sessionStorage.getItem('lumina.pollinationsAppKey') || '';
+    // Corrige sessões criadas pela versão anterior, que tratava a App Key pk_ como chave de geração.
+    if (apiKey.startsWith('pk_')) {
+      appKey = apiKey;
+      apiKey = '';
+      sessionStorage.setItem('lumina.pollinationsAppKey', appKey);
+      sessionStorage.removeItem('lumina.pollinationsKey');
+    }
     let referenceFile = null;
 
     function imageSize() {
@@ -461,7 +476,7 @@
     function readableFailure(reason) {
       const message = reason?.message || 'A IA não respondeu.';
       if (/failed to fetch|networkerror/i.test(message)) return 'Não foi possível alcançar a IA. Confira a conexão, desative bloqueadores para gen.pollinations.ai e tente novamente.';
-      if (/erro 401|unauthor/i.test(message)) return 'Chave não autorizada. Use uma chave pk_ ativa, com acesso à categoria de imagens.';
+      if (/erro 401|unauthor/i.test(message)) return 'A autorização expirou ou foi recusada. Clique em “Conectar IA” e autorize sua conta novamente.';
       if (/erro 402|payment|required|saldo|credit/i.test(message)) return 'A chave foi aceita, mas não há saldo/permissão para o modelo selecionado. Tente gerar sem fundo transparente ou revise sua conta.';
       if (/erro 403|forbidden/i.test(message)) return 'Sua chave não tem permissão para este modelo. Verifique as permissões de imagem no portal da Pollinations.';
       if (/erro 400/i.test(message) && transparent) return 'O modelo da sua chave não aceita transparência. Desligue “Fundo transparente” e gere novamente.';
@@ -632,12 +647,47 @@
     const apiButtonText = $('#apiButtonText');
     const apiDialogBackdrop = $('#apiDialogBackdrop');
     const apiKeyInput = $('#apiKeyInput');
+    const callbackUrl = $('#callbackUrl');
 
+    function redirectUri() { return `${location.origin}${location.pathname}`; }
+    function createState() {
+      const bytes = new Uint8Array(18);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+    function handleAuthorizationCallback() {
+      if (!location.hash || location.hash.length < 2) return false;
+      const hash = new URLSearchParams(location.hash.slice(1));
+      const key = hash.get('api_key');
+      const error = hash.get('error');
+      const returnedState = hash.get('state');
+      const expectedState = sessionStorage.getItem('lumina.oauthState');
+      history.replaceState(null, '', redirectUri());
+      sessionStorage.removeItem('lumina.oauthState');
+      if (error) {
+        showEmpty('Conexão não autorizada', `A Pollinations retornou: ${error}. Tente conectar novamente.`);
+        return true;
+      }
+      if (expectedState && returnedState !== expectedState) {
+        showEmpty('Conexão não autorizada', 'A verificação da conexão falhou. Inicie a conexão novamente.');
+        return true;
+      }
+      if (key?.startsWith('sk_')) {
+        apiKey = key;
+        sessionStorage.setItem('lumina.pollinationsKey', apiKey);
+        showToast('Conta conectada com sucesso. Agora você pode gerar imagens.');
+        return true;
+      }
+      showEmpty('Conexão não concluída', 'A Pollinations não retornou uma autorização válida. Tente novamente.');
+      return true;
+    }
     function updateConnectionUI() {
       const connected = Boolean(apiKey);
       apiButton.classList.toggle('connected', connected);
       apiButtonText.textContent = connected ? 'IA conectada' : 'Conectar IA';
-      apiKeyInput.value = apiKey;
+      apiKeyInput.value = appKey;
+      callbackUrl.textContent = redirectUri();
+      callbackUrl.title = redirectUri();
     }
     function openApiDialog() {
       updateConnectionUI();
@@ -645,25 +695,41 @@
       setTimeout(() => apiKeyInput.focus(), 20);
     }
     function closeApiDialog() { apiDialogBackdrop.classList.remove('open'); }
+    function startAuthorization() {
+      const value = apiKeyInput.value.trim();
+      if (!value.startsWith('pk_')) { showToast('Informe a App Key da Pollinations, iniciada em pk_.'); apiKeyInput.focus(); return; }
+      appKey = value;
+      sessionStorage.setItem('lumina.pollinationsAppKey', appKey);
+      const state = createState();
+      sessionStorage.setItem('lumina.oauthState', state);
+      const params = new URLSearchParams({
+        client_id: appKey,
+        redirect_uri: redirectUri(),
+        scope: 'usage',
+        models: 'image',
+        expiry: '7',
+        state
+      });
+      window.location.assign(`${POLLINATIONS_AUTH}?${params.toString()}`);
+    }
 
     $('#apiButton').addEventListener('click', openApiDialog);
     $('#closeApiDialog').addEventListener('click', closeApiDialog);
-    apiDialogBackdrop.addEventListener('click', event => { if (event.target === apiDialogBackdrop) closeApiDialog(); });
-    $('#saveApiKey').addEventListener('click', () => {
-      const value = apiKeyInput.value.trim();
-      if (!/^(pk_|sk_)/.test(value)) { showToast('Use uma chave da Pollinations que comece com pk_ ou sk_.'); apiKeyInput.focus(); return; }
-      apiKey = value;
-      sessionStorage.setItem('lumina.pollinationsKey', apiKey);
-      updateConnectionUI();
-      closeApiDialog();
-      showToast('IA conectada. Agora suas imagens serão geradas de verdade.');
+    $('#copyCallback').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(redirectUri()); showToast('URL de retorno copiada.'); }
+      catch { showToast('Copie a URL de retorno exibida na janela.'); }
     });
+    apiDialogBackdrop.addEventListener('click', event => { if (event.target === apiDialogBackdrop) closeApiDialog(); });
+    $('#saveApiKey').addEventListener('click', startAuthorization);
     $('#clearApiKey').addEventListener('click', () => {
       apiKey = '';
+      appKey = '';
       sessionStorage.removeItem('lumina.pollinationsKey');
+      sessionStorage.removeItem('lumina.pollinationsAppKey');
+      sessionStorage.removeItem('lumina.oauthState');
       updateConnectionUI();
       closeApiDialog();
-      showToast('A chave foi removida desta sessão.');
+      showToast('A conta foi desconectada desta sessão.');
     });
 
     promptInput.addEventListener('input', () => charCount.textContent = promptInput.value.length);
@@ -739,8 +805,10 @@
     $('#shareButton').addEventListener('click', async () => { try { await navigator.clipboard.writeText(location.href); showToast('Link do projeto copiado.'); } catch { showToast('Seu projeto está pronto para compartilhar.'); } });
     document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => { document.querySelector('.nav-item.active')?.classList.remove('active'); item.classList.add('active'); }));
     charCount.textContent = promptInput.value.length;
+    const returnedFromAuthorization = handleAuthorizationCallback();
     updateConnectionUI();
-    showEmpty();
+    if (!returnedFromAuthorization) showEmpty();
+    else if (apiKey) showEmpty('Conta conectada', 'Sua autorização está ativa. Descreva sua ideia e gere a primeira imagem.');
   </script>
 </body>
 </html>

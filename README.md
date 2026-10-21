@@ -12,18 +12,21 @@ python3 -m http.server 4173 --bind 0.0.0.0
 
 Depois, abra `http://localhost:4173`.
 
-## Conectar a IA real
+## Conectar a IA real (Pollinations)
 
-1. No canto superior direito, selecione **Conectar IA**.
-2. Crie uma chave de navegador `pk_` da Pollinations em <https://enter.pollinations.ai/keys>, com a categoria **image** habilitada.
-3. Cole a chave na janela do app e escolha **Salvar e continuar**.
-4. Escreva o prompt e use **Gerar imagens**.
+O Lúmina usa o fluxo oficial de autorização **BYOP** da Pollinations: uma `App Key` pública (`pk_...`) identifica o site e, depois da sua aprovação, a Pollinations devolve um token temporário de geração (`sk_...`) para a sessão atual.
 
-A chave é mantida somente em `sessionStorage` do navegador e não é adicionada ao código ou ao repositório. Para a geração padrão no navegador, o app usa o endpoint oficial `https://gen.pollinations.ai/image` com uma chave `pk_` na própria requisição de mídia — abordagem indicada pela Pollinations para clientes de navegador, sem preflight CORS. Portanto, use somente uma chave de navegador com orçamento/permissões limitados; nunca uma chave secreta de servidor.
+1. No site, clique em **Conectar IA**.
+2. Copie a **URL de retorno** que aparece na janela.
+3. Em <https://enter.pollinations.ai/keys>, crie uma **App Key** (`pk_...`) e cadastre exatamente essa URL em **Redirect URI**. Habilite a categoria `image`.
+4. Cole a App Key no Lúmina e clique em **Conectar conta**.
+5. Faça login/autorize a conta na Pollinations. Você voltará ao Lúmina já conectado.
+6. Escreva o prompt e use **Gerar imagens**.
 
-- Sem referência, o app começa no modelo `black-forest-labs/flux.1-schnell`, uma opção de maior compatibilidade para gerar imagens reais.
+A chave temporária de geração é mantida somente em `sessionStorage`; ela não é colocada no repositório nem permanece na URL depois do retorno da autorização. A geração padrão usa `black-forest-labs/flux.1-schnell` pela maior compatibilidade.
+
 - Com referência, o app envia o arquivo local ao endpoint de edição para que a IA use a imagem como guia.
-- Fundo transparente usa um modelo GPT Image compatível, que pode pedir permissões/créditos diferentes. Caso dê erro, desligue essa opção para confirmar primeiro a geração padrão.
-- O botão de download salva o arquivo retornado pela IA.
+- Fundo transparente usa um modelo GPT Image compatível, que pode pedir permissões/créditos diferentes. Gere primeiro com essa opção desligada para verificar sua autorização.
+- O botão de download abre o arquivo retornado pela IA para salvar.
 
 > O site não limita artificialmente a quantidade de gerações. A disponibilidade, os modelos aceitos, a transparência e eventuais custos/saldo são definidos pela conta e pelo provedor de IA conectado.
