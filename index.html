@@ -213,6 +213,34 @@
     .toast { position: fixed; z-index: 50; left: 50%; bottom: 25px; transform: translate(-50%, 20px); display: flex; align-items: center; gap: 9px; color: white; background: #24232b; padding: 10px 13px; border: 1px solid rgba(255,255,255,.16); border-radius: 10px; box-shadow: 0 15px 35px rgba(0,0,0,.38); font-size: 12px; opacity: 0; pointer-events: none; transition: .25s ease; }
     .toast.show { transform: translate(-50%, 0); opacity: 1; }
     .toast .icon { width: 15px; height: 15px; color: var(--aqua); }
+    .api-button { border: 1px solid rgba(152,125,255,.42); height: 34px; padding: 0 11px; border-radius: 9px; background: rgba(135,102,243,.12); display: flex; align-items: center; gap: 7px; color: #e8e1ff; font-size: 11px; font-weight: 650; transition: .18s; }
+    .api-button:hover { border-color: rgba(183,162,255,.8); background: rgba(135,102,243,.21); }
+    .api-indicator { width: 6px; height: 6px; border-radius: 50%; background: #84848d; box-shadow: 0 0 0 3px rgba(132,132,141,.12); }
+    .api-button.connected .api-indicator { background: var(--aqua); box-shadow: 0 0 9px var(--aqua); }
+    .dialog-backdrop { position: fixed; z-index: 60; inset: 0; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(4,4,7,.7); backdrop-filter: blur(7px); }
+    .dialog-backdrop.open { display: flex; }
+    .api-dialog { width: min(440px, 100%); padding: 22px; border: 1px solid rgba(255,255,255,.15); border-radius: 17px; background: #17171d; box-shadow: 0 30px 90px rgba(0,0,0,.6); animation: dialogIn .18s ease-out; }
+    @keyframes dialogIn { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
+    .dialog-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+    .dialog-icon { width: 37px; height:37px; display:grid; place-items:center; flex: 0 0 auto; border-radius: 11px; color: var(--aqua); background: rgba(96,232,208,.1); }
+    .dialog-icon .icon { width:19px; height:19px; }
+    .dialog-title { display: flex; gap: 10px; align-items:center; }
+    .dialog-title h2 { font-size: 16px; margin: 0; }
+    .dialog-close { width:30px; height:30px; display:grid; place-items:center; padding:0; border:0; border-radius:8px; color:var(--soft); background:transparent; }
+    .dialog-close:hover { color:white; background:var(--panel-3); }
+    .dialog-close .icon { width:16px; height:16px; }
+    .api-dialog p { margin: 11px 0 18px; color: var(--muted); font-size: 12px; line-height:1.55; }
+    .api-dialog label { display:block; color:#e6e6ec; font-size:12px; font-weight:650; margin-bottom:8px; }
+    .api-dialog input { height:42px; width:100%; outline:0; border: 1px solid var(--line-strong); background:#0d0d12; color:white; padding:0 11px; border-radius:9px; font-size:12px; transition:.2s; }
+    .api-dialog input:focus { border-color:rgba(155,125,255,.8); box-shadow:0 0 0 3px rgba(136,105,244,.12); }
+    .api-help { margin: 10px 0 18px; color:var(--soft); font-size:10px; line-height:1.45; }
+    .api-help a { color:var(--violet-2); text-underline-offset:2px; }
+    .dialog-actions { display:flex; justify-content:space-between; gap:10px; }
+    .button-secondary, .button-primary { height:38px; padding:0 13px; border-radius:9px; font-size:12px; font-weight:650; }
+    .button-secondary { color:var(--muted); border:1px solid var(--line); background:transparent; }
+    .button-secondary:hover { color:white; border-color:var(--line-strong); }
+    .button-primary { color:white; border:0; background:linear-gradient(105deg,#9d87ff,#7155e7); }
+    .button-primary:hover { filter:brightness(1.08); }
 
     @media (max-width: 920px) {
       .app { grid-template-columns: 70px minmax(0,1fr); }
@@ -280,15 +308,15 @@
       <nav class="nav" aria-label="Navegação principal">
         <button class="nav-item active"><svg class="icon"><use href="#i-grid"/></svg><span>Gerar</span></button>
         <button class="nav-item"><svg class="icon"><use href="#i-folder"/></svg><span>Meus projetos</span></button>
-        <button class="nav-item"><svg class="icon"><use href="#i-clock"/></svg><span>Histórico</span><b class="count" id="historyCount">4</b></button>
+        <button class="nav-item"><svg class="icon"><use href="#i-clock"/></svg><span>Histórico</span><b class="count" id="historyCount">0</b></button>
         <button class="nav-item"><svg class="icon"><use href="#i-heart"/></svg><span>Favoritos</span></button>
       </nav>
       <hr class="sidebar-separator" />
       <button class="nav-item"><svg class="icon"><use href="#i-help"/></svg><span>Central de ajuda</span></button>
       <div class="mini-card">
-        <strong>Crie sem limites</strong>
-        <p>Explore, refine e baixe todas as suas ideias.</p>
-        <div class="unlimited-badge"><span></span> Gerações ilimitadas</div>
+        <strong>Imagens de verdade</strong>
+        <p>Conecte sua chave e transforme prompts em criações por IA.</p>
+        <div class="unlimited-badge"><span></span> Você decide o ritmo</div>
       </div>
       <div class="profile">
         <div class="avatar">AC</div><div><span class="profile-name">Ateliê Criativo</span><span class="profile-plan">Plano livre</span></div><button class="profile-more"><svg class="icon"><use href="#i-more"/></svg></button>
@@ -298,7 +326,7 @@
     <main>
       <header class="topbar">
         <div class="breadcrumbs"><span>Projetos</span><span>›</span><span class="project-name">Explorações visuais</span><button class="more-button" aria-label="Mais opções"><svg class="icon"><use href="#i-more"/></svg></button></div>
-        <div class="top-actions"><button class="share-button" id="shareButton"><svg class="icon"><use href="#i-share"/></svg>Compartilhar</button><button class="circle-button" aria-label="Notificações"><svg class="icon"><use href="#i-bell"/></svg></button></div>
+        <div class="top-actions"><button class="api-button" id="apiButton" aria-label="Conectar IA"><span class="api-indicator"></span><span id="apiButtonText">Conectar IA</span></button><button class="share-button" id="shareButton"><svg class="icon"><use href="#i-share"/></svg>Compartilhar</button><button class="circle-button" aria-label="Notificações"><svg class="icon"><use href="#i-bell"/></svg></button></div>
       </header>
 
       <section class="content">
@@ -307,7 +335,7 @@
             <div class="eyebrow"><span class="spark">✦</span> Laboratório criativo</div>
             <h1>Imagine. Crie. <em>Repita.</em></h1>
           </div>
-          <div class="generation-counter"><span class="counter-icon"><svg class="icon"><use href="#i-spark"/></svg></span><span><strong id="totalCount">24</strong> imagens criadas neste projeto</span></div>
+          <div class="generation-counter"><span class="counter-icon"><svg class="icon"><use href="#i-spark"/></svg></span><span><strong id="totalCount">0</strong> imagens criadas neste projeto</span></div>
         </div>
 
         <section class="studio" aria-label="Gerador de imagens">
@@ -345,15 +373,29 @@
           </section>
 
           <section class="results">
-            <div class="results-heading"><h2>Variações <span id="variationsText">4 resultados</span></h2><div class="result-actions"><button class="view-button active" aria-label="Visualização em grade"><svg class="icon"><use href="#i-grid"/></svg></button><button class="view-button" id="refreshButton" aria-label="Gerar novas variações"><svg class="icon"><use href="#i-refresh"/></svg></button></div></div>
+            <div class="results-heading"><h2>Variações <span id="variationsText">aguardando criação</span></h2><div class="result-actions"><button class="view-button active" aria-label="Visualização em grade"><svg class="icon"><use href="#i-grid"/></svg></button><button class="view-button" id="refreshButton" aria-label="Gerar novas variações"><svg class="icon"><use href="#i-refresh"/></svg></button></div></div>
             <div class="gallery" id="gallery"></div>
-            <div class="bottom-note"><svg class="icon"><use href="#i-info"/></svg><span>Suas criações ficam salvas neste projeto. PNG transparente pronto para baixar.</span></div>
+            <div class="bottom-note"><svg class="icon"><use href="#i-info"/></svg><span>Gere imagens reais pela IA conectada e baixe o resultado em PNG.</span></div>
           </section>
         </section>
       </section>
     </main>
   </div>
   <div class="toast" id="toast"><svg class="icon"><use href="#i-spark"/></svg><span id="toastText">Pronto!</span></div>
+
+  <div class="dialog-backdrop" id="apiDialogBackdrop" role="dialog" aria-modal="true" aria-labelledby="apiDialogTitle">
+    <section class="api-dialog">
+      <div class="dialog-head">
+        <div class="dialog-title"><div class="dialog-icon"><svg class="icon"><use href="#i-spark"/></svg></div><h2 id="apiDialogTitle">Conectar geração por IA</h2></div>
+        <button class="dialog-close" id="closeApiDialog" aria-label="Fechar"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+      <p>Use a sua própria chave da Pollinations para gerar imagens reais. A chave fica somente nesta sessão do navegador e nunca é salva no projeto.</p>
+      <label for="apiKeyInput">Chave de API</label>
+      <input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk_..." />
+      <div class="api-help">Crie uma chave pessoal no <a href="https://enter.pollinations.ai/keys" target="_blank" rel="noreferrer">portal da Pollinations</a>. O site não impõe quantidade de gerações; disponibilidade e saldo seguem a sua conta no provedor.</div>
+      <div class="dialog-actions"><button class="button-secondary" id="clearApiKey">Desconectar</button><button class="button-primary" id="saveApiKey">Salvar e continuar</button></div>
+    </section>
+  </div>
 
   <script>
     const $ = (selector) => document.querySelector(selector);
@@ -376,7 +418,6 @@
     let transparent = true;
     let currentRatio = 'square';
     let currentStyle = 'Editorial';
-    let referenceImage = null;
     let generated = 0;
     let toastTimer;
 
@@ -393,126 +434,208 @@
       toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
     }
 
-    function seededRandom(seed) {
-      let x = Math.sin(seed) * 10000;
-      return () => { x = Math.sin(x) * 10000; return x - Math.floor(x); };
-    }
-    function hashString(text) {
-      let h = 2166136261;
-      for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
-      return h >>> 0;
-    }
-    function drawLeaf(ctx, x, y, r, rotation, color, alpha=1) {
-      ctx.save(); ctx.translate(x, y); ctx.rotate(rotation); ctx.globalAlpha = alpha;
-      const g = ctx.createLinearGradient(-r, -r, r, r);
-      g.addColorStop(0, color); g.addColorStop(1, 'rgba(255,255,255,.18)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.moveTo(0, -r); ctx.bezierCurveTo(r*.92, -r*.65, r*.9, r*.56, 0, r); ctx.bezierCurveTo(-r*.9, r*.56, -r*.92, -r*.65, 0, -r); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = Math.max(1, r*.035); ctx.beginPath(); ctx.moveTo(0, -r*.65); ctx.lineTo(0, r*.7); ctx.stroke(); ctx.restore();
-    }
-    function drawSphere(ctx, x, y, r, c1, c2, alpha=1) {
-      ctx.save(); ctx.globalAlpha = alpha; const g = ctx.createRadialGradient(x-r*.35,y-r*.4,r*.04,x,y,r); g.addColorStop(0,'rgba(255,255,255,.95)'); g.addColorStop(.18,c1); g.addColorStop(.74,c2); g.addColorStop(1,'rgba(8,6,15,.26)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
-    }
-    function drawStar(ctx, x, y, r, color) {
-      ctx.save(); ctx.translate(x,y); ctx.fillStyle=color; ctx.shadowColor=color; ctx.shadowBlur=r*2; ctx.beginPath(); for(let i=0;i<8;i++){const a=Math.PI/4*i; const rr=i%2? r*.2:r; ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)} ctx.closePath();ctx.fill();ctx.restore();
+    const POLLINATIONS_API = 'https://gen.pollinations.ai';
+    let apiKey = sessionStorage.getItem('lumina.pollinationsKey') || '';
+    let referenceFile = null;
+
+    function imageSize() {
+      if (currentRatio === 'portrait') return { width: 1024, height: 1280 };
+      if (currentRatio === 'landscape') return { width: 1280, height: 1024 };
+      return { width: 1024, height: 1024 };
     }
 
-    function canvasSize() {
-      if (currentRatio === 'portrait') return [640, 800];
-      if (currentRatio === 'landscape') return [800, 600];
-      return [720, 720];
+    function showEmpty(title = 'Pronto para uma imagem real', detail = 'Conecte sua IA e descreva o que você quer criar.') {
+      gallery.innerHTML = `<div class="empty-result"><div><div class="empty-icon">${icons.image}</div><h3>${title}</h3><p>${detail}</p></div></div>`;
+      variationsText.textContent = 'aguardando criação';
     }
-    function makeArt(index) {
-      const [w, h] = canvasSize();
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      const seed = hashString(promptInput.value + currentStyle + index + generated);
-      const rand = seededRandom(seed);
-      const palettes = {
-        'Editorial': ['#9c78ff', '#6fe0cf', '#ffae79', '#f58dca'],
-        'Neon suave': ['#c67dff', '#54eee0', '#ff93c8', '#d8ff67'],
-        'Monocromático': ['#d9d4eb', '#9083b8', '#f2bad4', '#8be3d2'],
-        'Orgânico': ['#8de2bf', '#d3be89', '#be8fda', '#ffb88a']
-      };
-      const colors = palettes[currentStyle] || palettes.Editorial;
 
-      if (!transparent) {
-        const bg = ctx.createLinearGradient(0, 0, w, h); bg.addColorStop(0, '#191525'); bg.addColorStop(.5, '#11131d'); bg.addColorStop(1, '#20151f'); ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
-        for (let i=0;i<12;i++) { ctx.fillStyle = colors[i%colors.length] + '16'; ctx.beginPath(); ctx.arc(rand()*w,rand()*h,rand()*w*.35,0,Math.PI*2); ctx.fill(); }
+    function readError(response, fallback) {
+      return response.text().then(text => {
+        try {
+          const json = JSON.parse(text);
+          return json?.error?.message || json?.error || json?.message || fallback;
+        } catch { return text || fallback; }
+      });
+    }
+
+    function blobToDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    function imageModel() {
+      // A Pollinations documenta transparência nos modelos GPT Image. Kontext recebe a referência no endpoint de edição.
+      if (transparent) return 'openai/gpt-image-2.5-flare';
+      return referenceFile ? 'black-forest-labs/flux.1-kontext-pro' : 'tongyi-mai/z-image-turbo';
+    }
+
+    function composedPrompt() {
+      const style = `estilo ${currentStyle.toLowerCase()}`;
+      const transparentInstruction = transparent ? ', sujeito isolado, sem cenário, fundo transparente' : '';
+      return `${promptInput.value.trim()}, ${style}${transparentInstruction}`;
+    }
+
+    async function generateOne(seed) {
+      const { width, height } = imageSize();
+      const prompt = composedPrompt();
+      const model = imageModel();
+      let response;
+
+      if (referenceFile) {
+        // Edição multipart permite que uma imagem local seja enviada como referência sem publicá-la em outro serviço.
+        const form = new FormData();
+        form.append('prompt', prompt);
+        form.append('model', model);
+        form.append('size', `${width}x${height}`);
+        form.append('quality', 'medium');
+        form.append('response_format', 'b64_json');
+        form.append('image', referenceFile, referenceFile.name);
+        if (transparent) form.append('transparent', 'true');
+        response = await fetch(`${POLLINATIONS_API}/v1/images/edits`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: form
+        });
+        if (!response.ok) throw new Error(await readError(response, 'Não foi possível aplicar essa referência.'));
+        const result = await response.json();
+        const item = result?.data?.[0];
+        if (item?.b64_json) return { src: `data:image/png;base64,${item.b64_json}`, mime: 'image/png' };
+        if (item?.url) {
+          const fileResponse = await fetch(item.url);
+          if (!fileResponse.ok) throw new Error('A imagem foi criada, mas não pôde ser baixada.');
+          const blob = await fileResponse.blob();
+          return { src: await blobToDataUrl(blob), mime: blob.type || 'image/png' };
+        }
+        throw new Error('A IA não retornou uma imagem utilizável.');
       }
 
-      // Glowing botanical stalks
-      ctx.save();
-      ctx.globalCompositeOperation = 'source-over';
-      const cx = w*(.48 + (rand()-.5)*.1), cy = h*(.52 + (rand()-.5)*.08);
-      for (let stem=0; stem<5; stem++) {
-        ctx.save(); ctx.translate(cx, cy+h*.32); ctx.rotate((stem-2)*.21+(rand()-.5)*.12);
-        const stalk = ctx.createLinearGradient(0,0,0,-h*.75); stalk.addColorStop(0,colors[stem%4]);stalk.addColorStop(.48,'rgba(255,255,255,.72)');stalk.addColorStop(1,colors[(stem+1)%4]);
-        ctx.strokeStyle=stalk;ctx.lineWidth=w*(.013+rand()*.012);ctx.lineCap='round';ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(w*.08,-h*.22,-w*.19,-h*.42,w*(rand()-.5)*.4,-h*(.57+rand()*.21));ctx.stroke();
-        for(let l=0;l<4;l++) { const yy=-h*(.15+l*.14+rand()*.07); drawLeaf(ctx, (l%2?1:-1)*w*(.035+rand()*.12),yy,w*(.06+rand()*.045), (l%2?1:-1)*(1.05+rand()*.45),colors[(l+stem)%4],.83); }
-        ctx.restore();
-      }
-      for (let i=0;i<7;i++) drawSphere(ctx,cx+(rand()-.5)*w*.48,cy+(rand()-.5)*h*.53,w*(.023+rand()*.055),colors[i%4],colors[(i+1)%4],.88);
-      for (let i=0;i<10;i++) drawStar(ctx,rand()*w,rand()*h,w*(.006+rand()*.01),'rgba(255,255,255,.8)');
-      ctx.restore();
-
-      // Subtle glass rings
-      ctx.save();ctx.translate(cx,cy);ctx.rotate(-.32);ctx.strokeStyle='rgba(255,255,255,.38)';ctx.lineWidth=2;ctx.setLineDash([6,8]);ctx.beginPath();ctx.ellipse(0,0,w*.28,h*.13,0,0,Math.PI*2);ctx.stroke();ctx.restore();
-      if(referenceImage) {
-        ctx.save(); ctx.globalAlpha=.17; ctx.globalCompositeOperation='screen';
-        const size=Math.min(w,h)*.28; ctx.beginPath();ctx.arc(w*.8,h*.22,size*.52,0,Math.PI*2);ctx.clip();ctx.drawImage(referenceImage,w*.8-size*.5,h*.22-size*.5,size,size);ctx.restore();
-      }
-      return canvas;
+      // GET retorna o arquivo da imagem diretamente e aceita `transparent=true` para modelos compatíveis.
+      const params = new URLSearchParams({
+        model,
+        width: String(width),
+        height: String(height),
+        seed: String(seed),
+        safe: 'true'
+      });
+      if (transparent) params.set('transparent', 'true');
+      // A documentação da Pollinations permite a chave na query nos endpoints GET de imagem.
+      params.set('key', apiKey);
+      response = await fetch(`${POLLINATIONS_API}/image/${encodeURIComponent(prompt)}?${params.toString()}`);
+      if (!response.ok) throw new Error(await readError(response, 'A IA não conseguiu gerar a imagem.'));
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('A resposta recebida não é uma imagem.');
+      return { src: await blobToDataUrl(blob), mime: blob.type };
     }
 
-    function cardFor(canvas, index) {
+    function cardForImage(image, index) {
       const card = document.createElement('article');
-      card.className = 'result-card' + (transparent ? ' checkerboard' : '');
+      const png = image.mime.includes('png');
+      card.className = 'result-card' + (transparent && png ? ' checkerboard' : '');
       card.dataset.id = `lumina-${Date.now()}-${index}`;
-      card.appendChild(canvas);
+      const img = document.createElement('img');
+      img.src = image.src;
+      img.alt = `Imagem criada por IA, variação ${index + 1}`;
+      card.appendChild(img);
       const meta = document.createElement('div');
       meta.className = 'result-meta';
-      const label = transparent ? 'PNG · sem fundo' : 'Imagem gerada';
-      meta.innerHTML = `<span class="tag">${label}</span><div class="card-buttons"><button class="card-action download-card" title="Baixar PNG">${icons.download}</button><button class="card-action variation-card" title="Criar variação">${icons.refresh}</button></div>`;
+      const label = transparent && png ? 'PNG · sem fundo' : png ? 'PNG gerado' : 'Imagem gerada';
+      meta.innerHTML = `<span class="tag">${label}</span><div class="card-buttons"><button class="card-action download-card" title="Baixar imagem">${icons.download}</button><button class="card-action variation-card" title="Criar variação">${icons.refresh}</button></div>`;
       card.appendChild(meta);
-      meta.querySelector('.download-card').addEventListener('click', e => { e.stopPropagation(); downloadCanvas(canvas); });
-      meta.querySelector('.variation-card').addEventListener('click', e => { e.stopPropagation(); generateImages(1); });
-      card.addEventListener('click', () => downloadCanvas(canvas));
+      meta.querySelector('.download-card').addEventListener('click', event => { event.stopPropagation(); downloadImage(image); });
+      meta.querySelector('.variation-card').addEventListener('click', event => { event.stopPropagation(); generateImages(1); });
+      card.addEventListener('click', () => downloadImage(image));
       return card;
     }
 
-    function downloadCanvas(canvas) {
-      const a = document.createElement('a');
-      a.download = `lumina-${Date.now()}.png`;
-      a.href = canvas.toDataURL('image/png');
-      a.click();
-      showToast(transparent ? 'PNG transparente salvo!' : 'PNG salvo na sua pasta de downloads!');
+    async function downloadImage(image) {
+      try {
+        const response = await fetch(image.src);
+        const blob = await response.blob();
+        const extension = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = `lumina-${Date.now()}.${extension}`;
+        a.href = url;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(transparent ? 'Sua imagem foi salva em PNG.' : 'Imagem salva na sua pasta de downloads!');
+      } catch { showToast('Não foi possível iniciar o download. Tente novamente.'); }
     }
 
-    function renderResults(count=4) {
-      gallery.innerHTML = '';
-      for(let i=0;i<count;i++) gallery.appendChild(cardFor(makeArt(i),i));
-      variationsText.textContent = `${count} ${count === 1 ? 'resultado' : 'resultados'}`;
+    function showGenerating(total) {
+      gallery.innerHTML = `<div class="empty-result" style="min-height:340px"><div><div class="orb"></div><h3>Criando ${total === 1 ? 'sua imagem' : 'suas variações'} de verdade</h3><p>A IA está compondo luz, forma e detalhes…</p></div></div>`;
+      variationsText.textContent = 'gerando…';
     }
 
-    function generateImages(count=4) {
+    async function generateImages(count = 1) {
       const prompt = promptInput.value.trim();
       if (!prompt) { promptInput.focus(); showToast('Conte o que você quer criar primeiro.'); return; }
+      if (!apiKey) { openApiDialog(); showToast('Conecte sua chave de IA para começar.'); return; }
       generateButton.disabled = true;
-      generateButton.querySelector('span').textContent = 'Criando…';
-      const old = gallery.innerHTML;
-      gallery.innerHTML = `<div class="empty-result" style="min-height:340px"><div><div class="orb"></div><h3>Criando suas variações</h3><p>Compondo luz, forma e detalhes…</p></div></div>`;
-      setTimeout(() => {
-        renderResults(count);
-        generated += count;
-        totalCount.textContent = 24 + generated;
-        historyCount.textContent = 4 + generated;
-        generateButton.disabled = false;
-        generateButton.querySelector('span').textContent = 'Gerar imagens';
-        showToast(`${count} novas variações prontas para explorar.`);
-      }, 760);
+      generateButton.querySelector('span').textContent = 'Gerando de verdade…';
+      showGenerating(count);
+      const seeds = Array.from({ length: count }, () => Math.floor(Math.random() * 2147483647));
+      const requests = await Promise.allSettled(seeds.map(seed => generateOne(seed)));
+      const images = requests.filter(result => result.status === 'fulfilled').map(result => result.value);
+      const failed = requests.filter(result => result.status === 'rejected');
+      if (images.length) {
+        gallery.innerHTML = '';
+        images.forEach((image, index) => gallery.appendChild(cardForImage(image, index)));
+        variationsText.textContent = `${images.length} ${images.length === 1 ? 'resultado' : 'resultados'}`;
+        generated += images.length;
+        totalCount.textContent = generated;
+        historyCount.textContent = generated;
+        showToast(failed.length ? `${images.length} imagem(ns) criada(s). Algumas variações falharam.` : `${images.length} imagem(ns) criada(s) por IA.`);
+      } else {
+        const detail = failed[0]?.reason?.message || 'Verifique sua chave, saldo e conexão com a IA.';
+        showEmpty('Não foi possível criar a imagem', detail);
+        showToast('A geração falhou. Confira os detalhes na tela.');
+      }
+      generateButton.disabled = false;
+      generateButton.querySelector('span').textContent = 'Gerar imagens';
     }
+
+    const apiButton = $('#apiButton');
+    const apiButtonText = $('#apiButtonText');
+    const apiDialogBackdrop = $('#apiDialogBackdrop');
+    const apiKeyInput = $('#apiKeyInput');
+
+    function updateConnectionUI() {
+      const connected = Boolean(apiKey);
+      apiButton.classList.toggle('connected', connected);
+      apiButtonText.textContent = connected ? 'IA conectada' : 'Conectar IA';
+      apiKeyInput.value = apiKey;
+    }
+    function openApiDialog() {
+      updateConnectionUI();
+      apiDialogBackdrop.classList.add('open');
+      setTimeout(() => apiKeyInput.focus(), 20);
+    }
+    function closeApiDialog() { apiDialogBackdrop.classList.remove('open'); }
+
+    $('#apiButton').addEventListener('click', openApiDialog);
+    $('#closeApiDialog').addEventListener('click', closeApiDialog);
+    apiDialogBackdrop.addEventListener('click', event => { if (event.target === apiDialogBackdrop) closeApiDialog(); });
+    $('#saveApiKey').addEventListener('click', () => {
+      const value = apiKeyInput.value.trim();
+      if (value.length < 8) { showToast('Cole uma chave de API válida para continuar.'); apiKeyInput.focus(); return; }
+      apiKey = value;
+      sessionStorage.setItem('lumina.pollinationsKey', apiKey);
+      updateConnectionUI();
+      closeApiDialog();
+      showToast('IA conectada. Agora suas imagens serão geradas de verdade.');
+    });
+    $('#clearApiKey').addEventListener('click', () => {
+      apiKey = '';
+      sessionStorage.removeItem('lumina.pollinationsKey');
+      updateConnectionUI();
+      closeApiDialog();
+      showToast('A chave foi removida desta sessão.');
+    });
 
     promptInput.addEventListener('input', () => charCount.textContent = promptInput.value.length);
     document.querySelectorAll('.suggestion').forEach(button => button.addEventListener('click', () => {
@@ -521,41 +644,74 @@
       promptInput.dispatchEvent(new Event('input'));
       promptInput.focus();
     }));
-    transparentSwitch.addEventListener('click', () => { transparent = !transparent; transparentSwitch.classList.toggle('on', transparent); transparentSwitch.setAttribute('aria-checked', transparent); renderResults(4); showToast(transparent ? 'Fundo transparente ativado.' : 'Fundo de cena ativado.'); });
+    transparentSwitch.addEventListener('click', () => {
+      transparent = !transparent;
+      transparentSwitch.classList.toggle('on', transparent);
+      transparentSwitch.setAttribute('aria-checked', transparent);
+      showToast(transparent ? 'Fundo transparente será solicitado à IA.' : 'A próxima geração terá fundo de cena.');
+    });
     generateButton.addEventListener('click', () => generateImages());
     $('#refreshButton').addEventListener('click', () => generateImages());
-    document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); generateImages(); } });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeApiDialog();
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); generateImages(); }
+    });
 
     const ratios = [ ['square','Quadrado (1:1)'], ['portrait','Retrato (4:5)'], ['landscape','Paisagem (4:3)'] ];
-    $('#ratioButton').addEventListener('click', () => { const n=(ratios.findIndex(r=>r[0]===currentRatio)+1)%ratios.length; currentRatio=ratios[n][0]; $('#ratioText').textContent=ratios[n][1]; const shape=$('#ratioShape'); shape.style.width=currentRatio==='portrait'?'10px':currentRatio==='landscape'?'16px':'13px';shape.style.height=currentRatio==='portrait'?'15px':currentRatio==='landscape'?'11px':'13px'; renderResults(4); });
+    $('#ratioButton').addEventListener('click', () => {
+      const next = (ratios.findIndex(r => r[0] === currentRatio) + 1) % ratios.length;
+      currentRatio = ratios[next][0];
+      $('#ratioText').textContent = ratios[next][1];
+      const shape = $('#ratioShape');
+      shape.style.width = currentRatio === 'portrait' ? '10px' : currentRatio === 'landscape' ? '16px' : '13px';
+      shape.style.height = currentRatio === 'portrait' ? '15px' : currentRatio === 'landscape' ? '11px' : '13px';
+      showToast(`Próxima imagem: ${ratios[next][1]}.`);
+    });
     const styles = ['Editorial', 'Neon suave', 'Monocromático', 'Orgânico'];
-    $('#styleButton').addEventListener('click', () => { currentStyle=styles[(styles.indexOf(currentStyle)+1)%styles.length]; $('#styleText').textContent=currentStyle; renderResults(4); showToast(`Estilo ${currentStyle} selecionado.`); });
+    $('#styleButton').addEventListener('click', () => {
+      currentStyle = styles[(styles.indexOf(currentStyle) + 1) % styles.length];
+      $('#styleText').textContent = currentStyle;
+      showToast(`Estilo ${currentStyle} selecionado.`);
+    });
 
     function setReference(file) {
       if (!file || !file.type.startsWith('image/')) { showToast('Escolha uma imagem PNG, JPG ou WEBP.'); return; }
+      referenceFile = file;
       const reader = new FileReader();
-      reader.onload = e => {
-        referenceThumb.src = e.target.result;
+      reader.onload = event => {
+        referenceThumb.src = event.target.result;
         referenceName.textContent = file.name;
-        referenceImage = new Image();
-        referenceImage.onload = () => renderResults(4);
-        referenceImage.src = e.target.result;
-        referenceEmpty.style.display = 'none'; referencePreview.classList.add('visible');
-        showToast('Referência adicionada à sua criação.');
+        referenceEmpty.style.display = 'none';
+        referencePreview.classList.add('visible');
+        showToast('Referência adicionada. A próxima geração usará esta imagem.');
       };
       reader.readAsDataURL(file);
     }
     $('#uploadTrigger').addEventListener('click', () => referenceInput.click());
     referenceInput.addEventListener('change', () => setReference(referenceInput.files[0]));
-    referenceBox.addEventListener('dragover', e => { e.preventDefault(); referenceBox.classList.add('dragging'); });
+    referenceBox.addEventListener('dragover', event => { event.preventDefault(); referenceBox.classList.add('dragging'); });
     referenceBox.addEventListener('dragleave', () => referenceBox.classList.remove('dragging'));
-    referenceBox.addEventListener('drop', e => { e.preventDefault(); referenceBox.classList.remove('dragging'); setReference(e.dataTransfer.files[0]); });
-    $('#removeReference').addEventListener('click', () => { referenceImage=null; referenceInput.value=''; referencePreview.classList.remove('visible'); referenceEmpty.style.display='flex'; renderResults(4); showToast('Referência removida.'); });
-    $('#newProject').addEventListener('click', () => { promptInput.value=''; promptInput.dispatchEvent(new Event('input')); promptInput.focus(); showToast('Novo espaço criativo pronto.'); });
+    referenceBox.addEventListener('drop', event => { event.preventDefault(); referenceBox.classList.remove('dragging'); setReference(event.dataTransfer.files[0]); });
+    $('#removeReference').addEventListener('click', () => {
+      referenceFile = null;
+      referenceInput.value = '';
+      referencePreview.classList.remove('visible');
+      referenceEmpty.style.display = 'flex';
+      showToast('Referência removida.');
+    });
+    $('#newProject').addEventListener('click', () => {
+      promptInput.value = '';
+      promptInput.dispatchEvent(new Event('input'));
+      generated = 0;
+      totalCount.textContent = '0';
+      showEmpty('Novo projeto pronto', 'Escreva um prompt e gere sua primeira imagem real.');
+      promptInput.focus();
+    });
     $('#shareButton').addEventListener('click', async () => { try { await navigator.clipboard.writeText(location.href); showToast('Link do projeto copiado.'); } catch { showToast('Seu projeto está pronto para compartilhar.'); } });
     document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => { document.querySelector('.nav-item.active')?.classList.remove('active'); item.classList.add('active'); }));
     charCount.textContent = promptInput.value.length;
-    renderResults(4);
+    updateConnectionUI();
+    showEmpty();
   </script>
 </body>
 </html>
