@@ -31,13 +31,18 @@ para servidor algum.
 
 ### Opção A — instalador pronto (recomendado)
 
-1. Abra a aba **Actions** deste repositório no GitHub.
-2. Entre na execução **Build Windows** mais recente (ou dispare uma pelo botão
-   *Run workflow*).
-3. Baixe o artefato `viral-cut-studio-windows` e extraia.
-4. Execute **`Viral Cut Studio-Setup-1.0.0.exe`** e siga o assistente
-   (você pode escolher a pasta de instalação).
-   - Também há **`Viral Cut Studio-Portable-1.0.0.exe`**, que roda sem instalar.
+1. Abra a página **Releases** do repositório
+   (`github.com/xboxcarioca-rgb/teste/releases`) e baixe, da versão mais recente:
+   - **`Viral.Cut.Studio-Setup-1.0.0.exe`** — instalador NSIS: assistente de
+     instalação, atalhos no menu/start e desinstalador;
+   - **`Viral.Cut.Studio-Portable-1.0.0.exe`** — versão portátil, roda direto,
+     sem instalar nada.
+2. Execute o instalador e siga o assistente (você escolhe a pasta de instalação).
+
+Ainda não há release publicado? Todo push na branch compila o instalador como
+artefato da execução **Build Windows** (aba *Actions*, artefato
+`viral-cut-studio-windows`), e criar uma tag `v*` publica um release
+automaticamente com os dois `.exe` anexados.
 
 > Sem assinatura de código, o SmartScreen mostra o aviso padrão do Windows.
 > Clique em **“Mais informações” → “Executar assim mesmo”**.
