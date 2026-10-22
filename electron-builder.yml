@@ -1,0 +1,58 @@
+appId: com.viralcutstudio.app
+productName: Viral Cut Studio
+copyright: Copyright © 2026 Viral Cut Studio
+
+directories:
+  output: dist
+  buildResources: build
+
+# Somente o que o app realmente usa vai para o instalador.
+files:
+  - package.json
+  - src/**/*
+  - assets/**/*
+  - "!**/*.map"
+  - "!**/{test,tests,__tests__}/**"
+  - "!node_modules/**/{README.md,readme.md,LICENSE,license,CHANGELOG.md,changelog.md}"
+  - "!node_modules/**/{*.d.ts,*.ts,tsconfig.json,.eslintrc*,.prettierrc*}"
+  - "!node_modules/.bin"
+
+# Binários nativos precisam ficar fora do asar para serem executáveis.
+asar: true
+asarUnpack:
+  - node_modules/@ffmpeg-installer/**/*
+  - node_modules/@ffprobe-installer/**/*
+
+extraMetadata:
+  main: src/main/index.js
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: "${productName}-Setup-${version}.${ext}"
+  # Sem assinatura de código: o instalador gera o aviso padrão do SmartScreen.
+  # Para assinar, defina CSC_LINK / CSC_KEY_PASSWORD no ambiente do build —
+  # o electron-builder detecta sozinho e passa a assinar sem mudar nada aqui.
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Viral Cut Studio
+  uninstallDisplayName: Viral Cut Studio
+  deleteAppDataOnUninstall: false
+  artifactName: "${productName}-Setup-${version}.${ext}"
+
+portable:
+  artifactName: "${productName}-Portable-${version}.${ext}"
+
+publish: null

@@ -1,0 +1,36 @@
+{
+  "name": "viral-cut-studio",
+  "productName": "Viral Cut Studio",
+  "version": "1.0.0",
+  "description": "Ferramenta desktop para criar cortes virais: download por link, recortes automáticos, formatos 9:16 / 1:1 / 4:5 / 16:9, fundo desfocado, tela dividida, legendas automáticas (Whisper) e banner com templates — com remoção total de metadados.",
+  "main": "src/main/index.js",
+  "author": {
+    "name": "Viral Cut Studio"
+  },
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --devtools",
+    "test": "node --test \"test/unit/*.test.js\"",
+    "test:all": "node --test \"test/unit/*.test.js\" \"test/integration/*.test.js\"",
+    "test:render": "node --test \"test/integration/*.test.js\"",
+    "lint": "node scripts/lint.js",
+    "icons": "node scripts/make-icons.js",
+    "dist:win": "electron-builder --win --x64",
+    "dist:win:portable": "electron-builder --win portable --x64",
+    "dist:dir": "electron-builder --dir",
+    "pack:check": "node scripts/verify-package.js"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3"
+  }
+}

@@ -1,0 +1,28 @@
+# Dependências
+node_modules/
+
+# Builds / instaladores
+dist/
+out/
+release/
+*.exe
+*.nsis
+*.blockmap
+
+# Cache local de binários e projetos de teste
+.cache/
+.tmp/
+sandbox/
+*.local.json
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+*.log
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

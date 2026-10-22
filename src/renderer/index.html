@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: vcs-media:; media-src 'self' vcs-media: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https:; font-src 'self' data:" />
+    <title>Viral Cut Studio</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app" class="app">
+      <!-- ======================================================= topo ===== -->
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">VC</span>
+          <div class="brand-text">
+            <strong>Viral Cut Studio</strong>
+            <small id="topbar-subtitle">cortes virais, legendas e banner — sem metadados</small>
+          </div>
+        </div>
+
+        <div class="topbar-center">
+          <span id="project-name" class="project-name" title="Clique para renomear">Novo projeto</span>
+          <span id="ffmpeg-badge" class="badge badge-muted">verificando FFmpeg…</span>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="btn btn-ghost" id="btn-new-project" title="Novo projeto">Novo</button>
+          <button class="btn btn-ghost" id="btn-open-project" title="Abrir projeto">Abrir</button>
+          <button class="btn btn-ghost" id="btn-save-project" title="Salvar projeto">Salvar</button>
+          <button class="btn btn-ghost" id="btn-tools" title="Ferramentas e diagnóstico">Ferramentas</button>
+        </div>
+      </header>
+
+      <div class="body">
+        <!-- ================================================= navegação ==== -->
+        <nav class="steps" id="steps">
+          <button class="step is-active" data-step="source">
+            <span class="step-index">1</span>
+            <span class="step-label">Fonte<small>link ou arquivo</small></span>
+          </button>
+          <button class="step" data-step="cuts">
+            <span class="step-index">2</span>
+            <span class="step-label">Cortes<small>detecção viral</small></span>
+          </button>
+          <button class="step" data-step="format">
+            <span class="step-index">3</span>
+            <span class="step-label">Formato<small>modelo de corte</small></span>
+          </button>
+          <button class="step" data-step="subs">
+            <span class="step-index">4</span>
+            <span class="step-label">Legendas<small>Whisper ou .srt</small></span>
+          </button>
+          <button class="step" data-step="banner">
+            <span class="step-index">5</span>
+            <span class="step-label">Banner<small>texto, logo, faixa</small></span>
+          </button>
+          <button class="step" data-step="output">
+            <span class="step-index">6</span>
+            <span class="step-label">Saída<small>renderizar .mp4</small></span>
+          </button>
+        </nav>
+
+        <!-- =================================================== conteúdo === -->
+        <main class="content" id="content">
+          <section class="panel is-active" data-panel="source" id="panel-source"></section>
+          <section class="panel" data-panel="cuts" id="panel-cuts"></section>
+          <section class="panel" data-panel="format" id="panel-format"></section>
+          <section class="panel" data-panel="subs" id="panel-subs"></section>
+          <section class="panel" data-panel="banner" id="panel-banner"></section>
+          <section class="panel" data-panel="output" id="panel-output"></section>
+          <section class="panel" data-panel="tools" id="panel-tools"></section>
+        </main>
+
+        <!-- ================================================ lado direito == -->
+        <aside class="sidebar">
+          <div class="sidebar-block">
+            <div class="sidebar-title">Pré-visualização</div>
+            <div class="preview-frame" id="preview-frame">
+              <video id="preview-video" controls playsinline></video>
+              <div class="preview-placeholder" id="preview-placeholder">
+                <span>Sem prévia ainda</span>
+                <small>Gere uma prévia rápida ou carregue um vídeo</small>
+              </div>
+            </div>
+            <div class="preview-actions">
+              <button class="btn btn-secondary btn-sm" id="btn-preview">Gerar prévia rápida</button>
+              <select id="preview-segment" class="input input-sm"></select>
+            </div>
+            <div class="hint" id="preview-hint">A prévia é renderizada em resolução reduzida e poucos segundos.</div>
+          </div>
+
+          <div class="sidebar-block">
+            <div class="sidebar-title">Template</div>
+            <select id="template-select" class="input"></select>
+            <div class="preview-actions">
+              <button class="btn btn-secondary btn-sm" id="btn-save-template">Salvar como template</button>
+              <button class="btn btn-ghost btn-sm" id="btn-manage-templates">Gerenciar</button>
+            </div>
+            <div class="hint" id="template-hint"></div>
+          </div>
+
+          <div class="sidebar-block">
+            <div class="sidebar-title">Resumo</div>
+            <dl class="summary" id="summary"></dl>
+          </div>
+
+          <div class="sidebar-block">
+            <div class="sidebar-title">Atividade</div>
+            <div class="jobs" id="jobs"></div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- ================================================ rodapé/status === -->
+      <footer class="statusbar">
+        <span id="status-text">Pronto.</span>
+        <span class="statusbar-right">
+          <span id="status-progress-wrap" class="status-progress is-hidden"><i id="status-progress-bar"></i></span>
+          <span id="status-meta"></span>
+        </span>
+      </footer>
+    </div>
+
+    <div id="toasts" class="toasts"></div>
+    <div id="modal-root" class="modal-root is-hidden"></div>
+
+    <script src="js/util.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/panel-source.js"></script>
+    <script src="js/panel-cuts.js"></script>
+    <script src="js/panel-format.js"></script>
+    <script src="js/panel-subs.js"></script>
+    <script src="js/panel-banner.js"></script>
+    <script src="js/panel-output.js"></script>
+    <script src="js/panel-tools.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
