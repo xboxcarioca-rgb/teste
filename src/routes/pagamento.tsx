@@ -12,6 +12,7 @@ import { pricingOptions } from '@/components/landing/data';
 import { getStripeEnvironment } from '@/lib/stripe';
 import { paymentPriceId } from '@/lib/payment-catalog';
 import { preparePurchase } from '@/lib/payments.functions';
+import { isStripeConfigured, kiwifyCheckoutUrl } from '@/lib/kiwify';
 
 const searchSchema = z.object({ plano: z.enum(['mensal', 'anual']).catch('anual') });
 
@@ -38,7 +39,10 @@ function PagamentoPage() {
   const [preparing, setPreparing] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cartao' | 'pix'>('cartao');
+  const [error, setError] = useState<string | null>(null);
   const priceId = paymentPriceId(plano, paymentMethod === 'pix' ? 'pix' : 'card');
+  const stripeReady = isStripeConfigured();
+  const kiwifyHref = kiwifyCheckoutUrl(plano);
 
   return (
     <main className="min-h-screen bg-background">
@@ -91,23 +95,47 @@ function PagamentoPage() {
                 : 'O cartão renova automaticamente conforme o período escolhido.'}
             </p>
           </div>
+          {!stripeReady && (
+            <div className="mt-6 rounded-lg border border-brand/40 bg-brand-muted p-5">
+              <p className="font-semibold text-foreground">
+                Finalize sua assinatura na Kiwify
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                O pagamento com cartão direto no site ainda não está ativado. Pelo checkout da Kiwify
+                você paga com Pix, cartão ou boleto e recebe o acesso do mesmo jeito.
+              </p>
+              <Button asChild size="lg" className="mt-4 w-full sm:w-auto">
+                <a href={kiwifyHref} target="_blank" rel="noopener noreferrer">
+                  <LockKeyhole className="h-4 w-4" /> Pagar {plan.price} na Kiwify
+                </a>
+              </Button>
+            </div>
+          )}
+
           {!checkoutEmail ? (
             <form
-              className="mt-6 space-y-4 border-t border-border/70 pt-6"
+              className={`mt-6 space-y-4 border-t border-border/70 pt-6 ${stripeReady ? '' : 'hidden'}`}
               onSubmit={async (event) => {
                 event.preventDefault();
                 const value = email.trim().toLowerCase();
                 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return;
                 setPreparing(true);
                 setConfirmationSent(false);
+                setError(null);
                 try {
                   const result = await preparePurchase({ data: { email: value, priceId, origin: window.location.origin, environment: getStripeEnvironment() } });
                   if (!result.ok) {
                     setConfirmationSent(false);
+                    setError('Não foi possível iniciar a compra com este e-mail. Tente novamente.');
                     return;
                   }
                   if (result.ready) setCheckoutEmail(value);
                   else setConfirmationSent(true);
+                } catch (cause) {
+                  setError(
+                    'O pagamento com cartão ainda não está ativo. Use o botão da Kiwify abaixo para assinar agora.',
+                  );
+                  console.error('[pagamento] falha ao preparar compra:', cause);
                 } finally {
                   setPreparing(false);
                 }
@@ -121,6 +149,7 @@ function PagamentoPage() {
                 <LockKeyhole className="h-4 w-4" /> {preparing ? 'Verificando…' : 'Continuar para o pagamento'}
               </Button>
               {confirmationSent && <p className="rounded-md border border-brand/30 bg-brand-muted p-3 text-sm text-foreground">Enviamos um link de confirmação. Abra seu e-mail para continuar com segurança.</p>}
+              {error && <p className="rounded-md border border-destructive/40 bg-destructive/15 p-3 text-sm text-foreground">{error}</p>}
               <p className="text-xs leading-5 text-muted-foreground">Use o mesmo e-mail no qual deseja receber seu código de acesso.</p>
             </form>
           ) : (

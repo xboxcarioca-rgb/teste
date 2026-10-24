@@ -5,11 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 import { pricingOptions } from "./data";
-
-const KIWIFY_LINKS = {
-  mensal: "https://pay.kiwify.com.br/Fgy8j0i",
-  anual: "https://pay.kiwify.com.br/SppG0CG",
-} as const;
+import { kiwifyCheckoutUrl } from "@/lib/kiwify";
 const SUPPORT_WHATSAPP =
   "https://api.whatsapp.com/send?phone=5511943152441&text=Ol%C3%A1%21%20Acabei%20de%20comprar%2C%20como%20fa%C3%A7o%20para%20ter%20acesso%3F";
 
@@ -30,15 +26,18 @@ export function Pricing({ affiliateMode = false }: { affiliateMode?: boolean } =
     }
   }, []);
 
-  function handleCheckout() {
-    const opened = window.open(KIWIFY_LINKS[effectiveBilling], "_blank", "noopener,noreferrer");
-    if (!opened) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("comprou", "1");
-    url.hash = "precos";
-    window.location.assign(url.toString());
-    window.location.reload();
-  }
+  /**
+   * O checkout da Kiwify é aberto por um <a href> de verdade — não por window.open.
+   *
+   * window.open(url, "_blank", "noopener") devolve NULL por especificação (nada a
+   * referenciar) e ainda é barrado por bloqueadores de pop-up e por WebViews
+   * (Instagram, Facebook, WhatsApp). Além disso, navegar/recarregar a página logo
+   * depois de abrir a aba cancelava o carregamento do checkout.
+   *
+   * Com <a href> o clique é tratado pelo navegador: abre sempre, funciona no
+   * "abrir em nova aba", no toque longo e no ctrl/cmd+clique.
+   */
+  const checkoutHref = kiwifyCheckoutUrl(effectiveBilling);
 
   return (
     <section id="precos" className="border-b border-border/60 scroll-mt-24">
@@ -113,11 +112,18 @@ export function Pricing({ affiliateMode = false }: { affiliateMode?: boolean } =
           <div className="flex flex-col gap-3 border-t border-border/70 pt-6">
             <div className="flex flex-col gap-3">
               <Button
+                asChild
                 size="lg"
                 className="w-full bg-[oklch(0.86_0.18_92)] text-black hover:bg-[oklch(0.80_0.18_92)] shadow-[0_0_24px_oklch(0.86_0.18_92/0.45)]"
-                onClick={handleCheckout}
               >
-                Assinar {selectedPlan.label} ({selectedPlan.price})
+                <a
+                  href={checkoutHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowSupport(true)}
+                >
+                  Assinar {selectedPlan.label} ({selectedPlan.price})
+                </a>
               </Button>
               <Button
                 asChild
