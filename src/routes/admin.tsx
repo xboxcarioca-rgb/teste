@@ -31,7 +31,7 @@ import {
   getAffiliateAdminData,
   markAffiliateSalePaid,
 } from "@/lib/affiliate.functions";
-import { brandLogoUrl } from "@/lib/brand";
+import { brandWordmarkUrl } from "@/lib/brand";
 import { HalftoneOrdersAdmin } from "@/components/admin/HalftoneOrdersAdmin";
 import { ChevronDown, ChevronRight, Users, MessageCircle, AlertTriangle } from "lucide-react";
 
@@ -268,7 +268,7 @@ function AdminPage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <img src={brandLogoUrl} alt="DTFLEXPRO" className="h-16 w-auto md:h-20" />
+            <img src={brandWordmarkUrl} alt="DTFLEXPRO" width={654} height={60} className="h-8 w-auto md:h-9" />
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Painel do proprietário</p>
               <h1 className="text-3xl font-semibold tracking-tight">Administração DTFLEXPRO</h1>

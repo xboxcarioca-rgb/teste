@@ -3,7 +3,7 @@ import { ArrowUpRight, Users, MessageCircle, Shirt, Gift } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { TrialSignupDialog } from "@/components/landing/TrialSignupDialog";
-import { brandLogoUrl } from "@/lib/brand";
+import { brandWordmarkUrl, brandWordmark2xUrl } from "@/lib/brand";
 
 export function Header({ affiliateMode = false }: { affiliateMode?: boolean } = {}) {
   return (
@@ -14,9 +14,12 @@ export function Header({ affiliateMode = false }: { affiliateMode?: boolean } = 
           className="inline-flex min-w-0 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <img
-            src={brandLogoUrl}
-            alt="DTFlexPRO"
-            className="h-auto w-28 object-contain sm:w-44 md:w-56"
+            src={brandWordmarkUrl}
+            srcSet={`${brandWordmarkUrl} 1x, ${brandWordmark2xUrl} 2x`}
+            alt="DTFLEXPRO"
+            width={654}
+            height={60}
+            className="h-6 w-auto object-contain sm:h-8 md:h-9"
           />
         </Link>
 
