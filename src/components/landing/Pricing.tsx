@@ -1,17 +1,21 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { CheckCircle2, MessageCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, MessageCircleMore } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 import { pricingOptions } from "./data";
 
-const WHATSAPP_NUMBER = "5511943152441";
+const KIWIFY_LINKS = {
+  mensal: "https://pay.kiwify.com.br/Fgy8j0i",
+  anual: "https://pay.kiwify.com.br/SppG0CG",
+} as const;
+const SUPPORT_WHATSAPP =
+  "https://api.whatsapp.com/send?phone=5511943152441&text=Ol%C3%A1%21%20Acabei%20de%20comprar%2C%20como%20fa%C3%A7o%20para%20ter%20acesso%3F";
 
 export function Pricing({ affiliateMode = false }: { affiliateMode?: boolean } = {}) {
-  const navigate = useNavigate();
   const [billing, setBilling] = useState<"mensal" | "anual">("anual");
+  const [showSupport, setShowSupport] = useState(false);
   const effectiveBilling = affiliateMode ? "anual" : billing;
 
   const selectedPlan = useMemo(
@@ -19,16 +23,21 @@ export function Pricing({ affiliateMode = false }: { affiliateMode?: boolean } =
     [effectiveBilling],
   );
 
-  function handleCheckout() {
-    // Abre a página de pagamento na MESMA janela (sem segunda janela/aba).
-    navigate({ to: "/pagamento", search: { plano: effectiveBilling } });
-  }
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("comprou") === "1") {
+      setShowSupport(true);
+      document.getElementById("precos")?.scrollIntoView();
+    }
+  }, []);
 
-  function handleSendReceipt() {
-    const message = encodeURIComponent(
-      `Olá! Acabei de pagar o ${selectedPlan.label} (${selectedPlan.price}) da DTFLEXPRO. Segue o comprovante.`,
-    );
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, "_blank", "noopener,noreferrer");
+  function handleCheckout() {
+    const opened = window.open(KIWIFY_LINKS[effectiveBilling], "_blank", "noopener,noreferrer");
+    if (!opened) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("comprou", "1");
+    url.hash = "precos";
+    window.location.assign(url.toString());
+    window.location.reload();
   }
 
   return (
@@ -38,7 +47,7 @@ export function Pricing({ affiliateMode = false }: { affiliateMode?: boolean } =
           <p className="text-sm uppercase tracking-[0.24em] text-brand">Planos</p>
           <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Escolha a assinatura que combina com o seu ritmo de produção</h2>
           <p className="text-base leading-7 text-muted-foreground">
-            Pagamento via Nubank (Pix ou cartão). Após o pagamento, envie o comprovante pelo WhatsApp para liberarmos seu acesso.
+            Pagamento seguro dentro do site. Seu acesso é liberado automaticamente após a confirmação.
           </p>
         </div>
 
@@ -61,6 +70,16 @@ export function Pricing({ affiliateMode = false }: { affiliateMode?: boolean } =
           </div>
         )}
 
+        {showSupport && (
+          <div className="mb-8 max-w-3xl rounded-lg border border-brand/40 bg-brand-muted p-5">
+            <p className="font-semibold text-foreground">Se você comprou, entre em contato para liberar seu acesso.</p>
+            <Button asChild className="mt-3 bg-success text-success-foreground hover:bg-success/90">
+              <a href={SUPPORT_WHATSAPP} target="_blank" rel="noreferrer">
+                <MessageCircleMore className="h-4 w-4" /> Acabei de comprar
+              </a>
+            </Button>
+          </div>
+        )}
 
         <Card className="max-w-3xl rounded-lg border-border/70 bg-card/60 p-8 shadow-[var(--shadow-panel)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 border-b border-border/70 pb-6 md:flex-row md:items-start md:justify-between">
@@ -92,28 +111,24 @@ export function Pricing({ affiliateMode = false }: { affiliateMode?: boolean } =
           </div>
 
           <div className="flex flex-col gap-3 border-t border-border/70 pt-6">
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-3">
               <Button
                 size="lg"
-                className="w-full sm:w-auto bg-[oklch(0.86_0.18_92)] text-black hover:bg-[oklch(0.80_0.18_92)] shadow-[0_0_24px_oklch(0.86_0.18_92/0.45)]"
+                className="w-full bg-[oklch(0.86_0.18_92)] text-black hover:bg-[oklch(0.80_0.18_92)] shadow-[0_0_24px_oklch(0.86_0.18_92/0.45)]"
                 onClick={handleCheckout}
               >
-                Pagar com Nubank ({selectedPlan.price})
+                Assinar {selectedPlan.label} ({selectedPlan.price})
               </Button>
               <Button
+                asChild
                 size="lg"
-                className="w-full sm:w-auto bg-[oklch(0.62_0.19_150)] text-white hover:bg-[oklch(0.56_0.19_150)] shadow-[0_0_24px_oklch(0.62_0.19_150/0.45)]"
-                onClick={handleSendReceipt}
+                className="w-full bg-success text-success-foreground hover:bg-success/90 shadow-[0_0_24px_oklch(0.70_0.17_152/0.35)]"
               >
-                <MessageCircle className="h-4 w-4" />
-                Enviar comprovante no WhatsApp
+                <a href={SUPPORT_WHATSAPP} target="_blank" rel="noreferrer">
+                  <MessageCircleMore className="h-4 w-4" /> Acabei de comprar
+                </a>
               </Button>
             </div>
-
-            <p className="text-sm text-muted-foreground">
-              Após o pagamento, envie o comprovante pelo WhatsApp e libere seu acesso em minutos.
-              Acesso vinculado a 1 dispositivo por conta.
-            </p>
           </div>
         </Card>
       </div>

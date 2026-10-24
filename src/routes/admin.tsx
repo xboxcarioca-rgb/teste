@@ -499,7 +499,7 @@ function AdminPage() {
         <DataCard title="Registrar compra (envia senha provisória ao cliente)">
 
           <p className="mb-3 text-xs text-muted-foreground">
-            Use ao receber o comprovante do Nubank no WhatsApp. O cliente recebe um e-mail de boas-vindas com uma senha provisória (válida por 7 dias e ligada a 1 dispositivo). Depois que ele acessar, libere a senha definitiva no formulário abaixo.
+            Use ao receber a confirmação de compra da Kiwify (ou o comprovante enviado no WhatsApp). O cliente recebe um e-mail de boas-vindas com uma senha provisória (válida por 7 dias e ligada a 1 dispositivo). Depois que ele acessar, libere a senha definitiva no formulário abaixo.
           </p>
           <form
             className="grid gap-3 md:grid-cols-[1.4fr_1fr_0.8fr_auto] md:items-end"
@@ -1034,8 +1034,8 @@ function buildClientMessage(item: {
 }
 
 const PLAN_CHECKOUT = {
-  mensal: { price: "R$ 47", cadence: "30 dias", url: "https://nubank.com.br/cobranca/c4gqtgTcme3a2dkq" },
-  anual: { price: "R$ 147", cadence: "365 dias", url: "https://nubank.com.br/cobranca/ZA14QIfuv63a2dkq" },
+  mensal: { price: "R$ 47", cadence: "30 dias", url: "https://pay.kiwify.com.br/Fgy8j0i" },
+  anual: { price: "R$ 147", cadence: "365 dias", url: "https://pay.kiwify.com.br/SppG0CG" },
 } as const;
 
 function buildBillingMessage(item: {

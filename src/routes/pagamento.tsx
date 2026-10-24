@@ -20,19 +20,19 @@ export const Route = createFileRoute("/pagamento")({
       {
         name: "description",
         content:
-          "Finalize o pagamento do plano mensal ou anual da DTFLEXPRO via Nubank (Pix ou cartão) e libere seu acesso.",
+          "Finalize o pagamento do plano mensal ou anual da DTFLEXPRO via Kiwify (Pix, cartão ou boleto) e libere seu acesso.",
       },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "Pagamento do plano — DTFLEXPRO" },
       {
         property: "og:description",
-        content: "Finalize o pagamento do plano mensal ou anual da DTFLEXPRO via Nubank (Pix ou cartão).",
+        content: "Finalize o pagamento do plano mensal ou anual da DTFLEXPRO via Kiwify (Pix, cartão ou boleto).",
       },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Pagamento do plano — DTFLEXPRO" },
       {
         name: "twitter:description",
-        content: "Finalize o pagamento do plano mensal ou anual da DTFLEXPRO via Nubank (Pix ou cartão).",
+        content: "Finalize o pagamento do plano mensal ou anual da DTFLEXPRO via Kiwify (Pix, cartão ou boleto).",
       },
     ],
   }),
@@ -90,7 +90,7 @@ function PagamentoPage() {
               rel="noopener noreferrer"
               className="inline-flex h-11 w-full items-center justify-center rounded-md bg-[oklch(0.86_0.18_92)] px-8 text-sm font-medium text-black shadow-[0_0_24px_oklch(0.86_0.18_92/0.45)] transition-colors hover:bg-[oklch(0.80_0.18_92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              Pagar com Nubank ({plan.price})
+              Pagar com Kiwify ({plan.price})
             </a>
             <Button
               size="lg"
