@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import logo from "@/assets/dtflexpro-logo.png.asset.json";
+import { brandLogoUrl } from "@/lib/brand";
 import {
   getAffiliateDashboard,
   loginAffiliate,
@@ -110,7 +110,7 @@ function AuthForm({
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
       <Card className="w-full max-w-md rounded-lg bg-card/70 p-6 backdrop-blur">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <img src={logo.url} alt="DTFlexPRO" className="h-12 w-auto" />
+          <img src={brandLogoUrl} alt="DTFLEXPRO" className="h-12 w-auto" />
           <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Programa de Afiliados</p>
           <h1 className="text-3xl font-semibold tracking-tight">
             {mode === "login" ? "Entrar" : "Cadastrar como afiliado"}
@@ -258,7 +258,7 @@ function Dashboard({
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <img src={logo.url} alt="DTFlexPRO" className="h-10 w-auto" />
+            <img src={brandLogoUrl} alt="DTFLEXPRO" className="h-10 w-auto" />
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Painel do afiliado</p>
               <h1 className="text-2xl font-semibold">Olá, {data.affiliate.full_name.split(" ")[0]}</h1>

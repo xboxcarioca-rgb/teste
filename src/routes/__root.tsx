@@ -1,6 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { AgentBrowserTools } from "@/components/AgentBrowserTools";
+import { brandFaviconUrl, brandSocialImageUrl } from "@/lib/brand";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -49,10 +50,13 @@ export const Route = createRootRoute({
       { name: "description", content: "Para quem é o dtflexpro.com? Profissionais de DTF (halftone) que precisam preparar artes com retículas (LPI) perfeitas para tirar o efeito plastificado." },
       { property: "og:description", content: "Para quem é o dtflexpro.com? Profissionais de DTF (halftone) que precisam preparar artes com retículas (LPI) perfeitas para tirar o efeito plastificado." },
       { name: "twitter:description", content: "Para quem é o dtflexpro.com? Profissionais de DTF (halftone) que precisam preparar artes com retículas (LPI) perfeitas para tirar o efeito plastificado." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/HqcOtKknNuVBb6VR55JOqjij9vw1/social-images/social-1782385388593-ChatGPT_Image_25_de_jun._de_2026,_08_02_36.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/HqcOtKknNuVBb6VR55JOqjij9vw1/social-images/social-1782385388593-ChatGPT_Image_25_de_jun._de_2026,_08_02_36.webp" },
+      { property: "og:image", content: brandSocialImageUrl },
+      { name: "twitter:image", content: brandSocialImageUrl },
     ],
     links: [
+      { rel: "icon", type: "image/png", href: brandFaviconUrl },
+      { rel: "apple-touch-icon", href: brandFaviconUrl },
+      { rel: "mask-icon", href: brandFaviconUrl },
       {
         rel: "stylesheet",
         href: appCss,

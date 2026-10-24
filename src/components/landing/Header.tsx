@@ -3,7 +3,7 @@ import { ArrowUpRight, Users, MessageCircle, Shirt, Gift } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { TrialSignupDialog } from "@/components/landing/TrialSignupDialog";
-import logo from "@/assets/dtflexpro-logo.png.asset.json";
+import { brandLogoUrl } from "@/lib/brand";
 
 export function Header({ affiliateMode = false }: { affiliateMode?: boolean } = {}) {
   return (
@@ -14,7 +14,7 @@ export function Header({ affiliateMode = false }: { affiliateMode?: boolean } = 
           className="inline-flex min-w-0 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <img
-            src={logo.url}
+            src={brandLogoUrl}
             alt="DTFlexPRO"
             className="h-auto w-28 object-contain sm:w-44 md:w-56"
           />
