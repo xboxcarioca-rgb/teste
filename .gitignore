@@ -31,3 +31,10 @@ dist-ssr
 *.sln
 *.sw?
 electron-release/
+
+# Saídas de build (não versionar)
+/dist
+/.netlify
+/netlify/
+/.output
+/.wrangler
