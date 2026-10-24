@@ -45,7 +45,10 @@ Landing page + ferramentas profissionais de DTF em uma só aplicação: **Halfto
 bun install            # ou: npm install
 
 # 2) variáveis de ambiente
-cp .env.example .env   # preencha SESSION_SECRET e SUPABASE_SERVICE_ROLE_KEY
+cp .env.example .env    # produção/hosting: preencha todos os valores
+# Em desenvolvimento local, prefira .env.local (ignorado pelo git):
+#   echo 'SESSION_SECRET="'$(openssl rand -hex 32)'"' >> .env.local
+#   echo 'SUPABASE_SERVICE_ROLE_KEY="sua-chave"' >> .env.local
 
 # 3) desenvolvimento
 bun run dev            # ou: npm run dev
