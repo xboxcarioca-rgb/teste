@@ -33,3 +33,17 @@
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "SAMEORIGIN"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+# ============================================================================
+# Variáveis pedidas automaticamente no botão "Deploy to Netlify"
+# (https://app.netlify.com/start/deploy?repository=...)
+# Os segredos ficam em branco de propósito: você preenche na tela.
+# ============================================================================
+[template.environment]
+  SUPABASE_URL = "https://ifollbyypwxnkddepxae.supabase.co"
+  VITE_SUPABASE_URL = "https://ifollbyypwxnkddepxae.supabase.co"
+  SUPABASE_SERVICE_ROLE_KEY = ""
+  SUPABASE_PUBLISHABLE_KEY = ""
+  VITE_SUPABASE_PUBLISHABLE_KEY = ""
+  SESSION_SECRET = ""
+  APP_URL = ""

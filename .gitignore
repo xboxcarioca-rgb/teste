@@ -38,3 +38,6 @@ electron-release/
 /netlify/
 /.output
 /.wrangler
+
+# Pacotes de entrega (nao versionar)
+/public/downloads
