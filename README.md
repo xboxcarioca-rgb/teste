@@ -23,6 +23,26 @@ Landing page + ferramentas profissionais de DTF em uma só aplicação: **Halfto
 | Desktop | Electron + NSIS (`electron/`, `setup.nsi`) |
 | Deploy | Cloudflare (Wrangler/Nitro) ou qualquer host Node/estático |
 
+## Se o login (e-mail + código) parar de funcionar
+
+O app identifica o dispositivo por `device_key_hash` e guarda a sessão em
+`session_token_hash` (migrations `0006`/`0007`). Em banco que ainda está no
+schema antigo a gravação falha e o login é recusado mesmo com o código certo.
+
+**Correção:** rode `supabase/repair-access-login.sql` no **SQL Editor** do
+Supabase (idempotente, não apaga dados). No fim ele executa
+`NOTIFY pgrst, 'reload schema'`, que limpa o cache de colunas da API.
+
+Também confira no ambiente do servidor:
+
+| Variável | Efeito se faltar |
+| --- | --- |
+| `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | Nenhuma server function funciona (login, código, catálogo, admin) |
+| `SESSION_SECRET` | Não é possível assinar o cookie de sessão |
+
+O código agora devolve uma mensagem explícita quando essas variáveis faltam, em
+vez de "Código inválido ou expirado".
+
 ## Pagamentos e acesso
 
 | Fluxo | Implementação |

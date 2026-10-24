@@ -211,6 +211,24 @@ function deviceKeyHash(deviceKey: string) {
   return createHmac("sha256", getSessionSecret()).update(deviceKey).digest("hex");
 }
 
+/**
+ * Detecta erros de "a coluna/constraint não existe" — acontece quando o banco
+ * ainda está em um schema anterior às migrations 0006/0007 (device_key_hash,
+ * session_token_hash). Sem isso o login falhava com "Código inválido ou
+ * expirado" mesmo com o código certo.
+ */
+function isSchemaDriftError(error: unknown) {
+  const err = error as { code?: string; message?: string; details?: string } | null;
+  const code = err?.code ?? "";
+  const message = `${err?.message ?? ""} ${err?.details ?? ""}`;
+  return (
+    code === "42703" || // undefined_column
+    code === "42P10" || // invalid_column_reference (onConflict sem a constraint)
+    code === "PGRST204" || // coluna não encontrada no schema cache
+    /does not exist|schema cache|column .* not found/i.test(message)
+  );
+}
+
 async function sendAccessEmail({
   email,
   accessCode,
@@ -391,6 +409,15 @@ export const logoutAdminSession = createServerFn({ method: "POST" }).handler(asy
 export const validateAccessCode = createServerFn({ method: "POST" })
   .inputValidator(accessCodeSchema)
   .handler(async ({ data }) => {
+    // Sem essas variáveis o cliente Supabase nem é criado e o erro aparecia como
+    // "Código inválido ou expirado", escondendo a causa real.
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("[login] SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY ausentes no servidor");
+      return {
+        ok: false,
+        error: "Login indisponível: o servidor está sem SUPABASE_SERVICE_ROLE_KEY. Configure a variável e tente novamente.",
+      };
+    }
     const db = getDb();
     const email = normalizeEmail(data.email);
     const code = normalizeCode(data.code);
@@ -463,12 +490,22 @@ export const validateAccessCode = createServerFn({ method: "POST" })
     const deviceLimit = accessRow.device_limit ?? 1;
     const rawDeviceKey = data.deviceKey ?? `${currentUa}|legacy-browser`;
     const hashedDeviceKey = deviceKeyHash(rawDeviceKey);
-    const { data: knownDevice } = await db.from("access_device_sessions")
+    const knownLookup = await db.from("access_device_sessions")
       .select("id")
       .eq("access_id", accessRow.id)
       .eq("device_key_hash", hashedDeviceKey)
       .eq("device_type", "browser")
       .maybeSingle();
+    // Banco antigo (sem device_key_hash): identifica o dispositivo pelo user agent.
+    const knownDevice = knownLookup.error && isSchemaDriftError(knownLookup.error)
+      ? (await db.from("access_device_sessions")
+          .select("id")
+          .eq("access_id", accessRow.id)
+          .eq("device_type", "browser")
+          .eq("user_agent", currentUa)
+          .eq("active", true)
+          .maybeSingle()).data
+      : knownLookup.data;
     const { count: activeDevices } = await db.from("access_device_sessions")
       .select("id", { count: "exact", head: true })
       .eq("access_id", accessRow.id)
@@ -481,19 +518,49 @@ export const validateAccessCode = createServerFn({ method: "POST" })
     }
 
     const sessionToken = randomUUID();
-    const { data: deviceSession, error: deviceError } = await db.from("access_device_sessions").upsert({
+    const deviceLabel = currentUa.slice(0, 180);
+    const nowIso = new Date().toISOString();
+    let deviceSession: { id: string } | null = null;
+    let deviceError: unknown = null;
+
+    const fullUpsert = await db.from("access_device_sessions").upsert({
       access_id: accessRow.id,
       device_key_hash: hashedDeviceKey,
       device_type: "browser",
-      label: currentUa.slice(0, 180),
+      label: deviceLabel,
       user_agent: currentUa,
       last_ip: currentIp,
       active: true,
       session_token_hash: deviceKeyHash(sessionToken),
       session_expires_at: accessRow.expires_at,
-      last_seen_at: new Date().toISOString(),
+      last_seen_at: nowIso,
       revoked_at: null,
     }, { onConflict: "access_id,device_key_hash,device_type" }).select("id").single();
+    deviceSession = fullUpsert.data;
+    deviceError = fullUpsert.error;
+
+    if (deviceError && isSchemaDriftError(deviceError)) {
+      // Banco anterior às migrations 0006/0007: grava só as colunas antigas.
+      const legacyPayload = {
+        access_id: accessRow.id,
+        device_type: "browser",
+        label: deviceLabel,
+        user_agent: currentUa,
+        last_ip: currentIp,
+        active: true,
+        last_seen_at: nowIso,
+        revoked_at: null,
+      };
+      const legacyResult = knownDevice?.id
+        ? await db.from("access_device_sessions").update(legacyPayload).eq("id", knownDevice.id).select("id").single()
+        : await db.from("access_device_sessions").insert(legacyPayload).select("id").single();
+      deviceSession = legacyResult.data;
+      deviceError = legacyResult.error;
+      if (deviceError) {
+        console.error("[login] banco sem device_key_hash/session_token_hash:", deviceError);
+      }
+    }
+
     if (deviceError || !deviceSession) return { ok: false, error: genericAccessError };
 
     const expiresAt = refreshedExpiresAt(accessRow);
@@ -1314,17 +1381,24 @@ export const registerTrialAccess = createServerFn({ method: "POST" })
       return { ok: false, error: "Não foi possível criar seu teste. Tente novamente." };
     }
 
-    const { data: deviceSession } = await db.from("access_device_sessions").insert({
+    const trialDevice = {
       access_id: inserted.id,
-      device_key_hash: deviceKeyHash(data.deviceFp),
       device_type: "browser",
       label: currentUa.slice(0, 180),
       user_agent: currentUa,
       last_ip: currentIp,
       active: true,
+    };
+    let trialInsert = await db.from("access_device_sessions").insert({
+      ...trialDevice,
+      device_key_hash: deviceKeyHash(data.deviceFp),
       session_token_hash: deviceKeyHash(sessionToken),
       session_expires_at: expiresAt,
     }).select("id").single();
+    if (trialInsert.error && isSchemaDriftError(trialInsert.error)) {
+      trialInsert = await db.from("access_device_sessions").insert(trialDevice).select("id").single();
+    }
+    const deviceSession = trialInsert.data;
 
     const session = await useSession<AccessSessionData>(getAccessSessionConfig());
     await session.update({
