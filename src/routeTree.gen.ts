@@ -14,18 +14,23 @@ import { Route as SlugRouteImport } from './routes/$slug'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AfiliadoRouteImport } from './routes/afiliado'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as ConfirmarCompraRouteImport } from './routes/confirmar-compra'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as PagamentoRouteImport } from './routes/pagamento'
+import { Route as PagamentoRetornoRouteImport } from './routes/pagamento-retorno'
 import { Route as PedidoRouteImport } from './routes/pedido'
 import { Route as SobreHalftoneRouteImport } from './routes/sobre-halftone'
 import { Route as ValidateAccessCodeRouteImport } from './routes/validate-access-code'
 import { Route as VerifyAdminRouteImport } from './routes/verify-admin'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as ApiDriveFileRouteImport } from './routes/api/drive-file'
-import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
 import { Route as CatalogoTokenRouteImport } from './routes/catalogo.$token'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicDesktopActivateRouteImport } from './routes/api/public/desktop-activate'
 import { Route as ApiPublicDownloadWindowsRouteImport } from './routes/api/public/download-windows'
 import { Route as ApiPublicInfinitepayWebhookRouteImport } from './routes/api/public/infinitepay-webhook'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,14 +58,29 @@ const AppRoute = AppRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConfirmarCompraRoute = ConfirmarCompraRouteImport.update({
+  id: '/confirmar-compra',
+  path: '/confirmar-compra',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PagamentoRoute = PagamentoRouteImport.update({
   id: '/pagamento',
   path: '/pagamento',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PagamentoRetornoRoute = PagamentoRetornoRouteImport.update({
+  id: '/pagamento-retorno',
+  path: '/pagamento-retorno',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PedidoRoute = PedidoRouteImport.update({
@@ -83,19 +103,25 @@ const VerifyAdminRoute = VerifyAdminRouteImport.update({
   path: '/verify-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDriveFileRoute = ApiDriveFileRouteImport.update({
   id: '/api/drive-file',
   path: '/api/drive-file',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
-  id: '/api/stripe-webhook',
-  path: '/api/stripe-webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CatalogoTokenRoute = CatalogoTokenRouteImport.update({
   id: '/catalogo/$token',
   path: '/catalogo/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicDesktopActivateRoute =
@@ -116,6 +142,12 @@ const ApiPublicInfinitepayWebhookRoute =
     path: '/api/public/infinitepay-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const LovableEmailQueueProcessRoute =
   LovableEmailQueueProcessRouteImport.update({
     id: '/lovable/email/queue/process',
@@ -129,18 +161,23 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/afiliado': typeof AfiliadoRoute
   '/app': typeof AppRoute
+  '/confirmar-compra': typeof ConfirmarCompraRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/pagamento': typeof PagamentoRoute
+  '/pagamento-retorno': typeof PagamentoRetornoRoute
   '/pedido': typeof PedidoRoute
   '/sobre-halftone': typeof SobreHalftoneRoute
   '/validate-access-code': typeof ValidateAccessCodeRoute
   '/verify-admin': typeof VerifyAdminRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/drive-file': typeof ApiDriveFileRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/catalogo/$token': typeof CatalogoTokenRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/desktop-activate': typeof ApiPublicDesktopActivateRoute
   '/api/public/download-windows': typeof ApiPublicDownloadWindowsRoute
   '/api/public/infinitepay-webhook': typeof ApiPublicInfinitepayWebhookRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
@@ -149,18 +186,23 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/afiliado': typeof AfiliadoRoute
   '/app': typeof AppRoute
+  '/confirmar-compra': typeof ConfirmarCompraRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/pagamento': typeof PagamentoRoute
+  '/pagamento-retorno': typeof PagamentoRetornoRoute
   '/pedido': typeof PedidoRoute
   '/sobre-halftone': typeof SobreHalftoneRoute
   '/validate-access-code': typeof ValidateAccessCodeRoute
   '/verify-admin': typeof VerifyAdminRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/drive-file': typeof ApiDriveFileRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/catalogo/$token': typeof CatalogoTokenRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/desktop-activate': typeof ApiPublicDesktopActivateRoute
   '/api/public/download-windows': typeof ApiPublicDownloadWindowsRoute
   '/api/public/infinitepay-webhook': typeof ApiPublicInfinitepayWebhookRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
@@ -170,18 +212,23 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/afiliado': typeof AfiliadoRoute
   '/app': typeof AppRoute
+  '/confirmar-compra': typeof ConfirmarCompraRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/pagamento': typeof PagamentoRoute
+  '/pagamento-retorno': typeof PagamentoRetornoRoute
   '/pedido': typeof PedidoRoute
   '/sobre-halftone': typeof SobreHalftoneRoute
   '/validate-access-code': typeof ValidateAccessCodeRoute
   '/verify-admin': typeof VerifyAdminRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/drive-file': typeof ApiDriveFileRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/catalogo/$token': typeof CatalogoTokenRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/desktop-activate': typeof ApiPublicDesktopActivateRoute
   '/api/public/download-windows': typeof ApiPublicDownloadWindowsRoute
   '/api/public/infinitepay-webhook': typeof ApiPublicInfinitepayWebhookRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
@@ -192,18 +239,23 @@ export interface FileRouteTypes {
     | '/admin'
     | '/afiliado'
     | '/app'
+    | '/confirmar-compra'
     | '/login'
+    | '/mcp'
     | '/pagamento'
+    | '/pagamento-retorno'
     | '/pedido'
     | '/sobre-halftone'
     | '/validate-access-code'
     | '/verify-admin'
+    | '/.well-known/oauth-protected-resource'
     | '/api/drive-file'
-    | '/api/stripe-webhook'
     | '/catalogo/$token'
+    | '/.lovable/oauth/consent'
     | '/api/public/desktop-activate'
     | '/api/public/download-windows'
     | '/api/public/infinitepay-webhook'
+    | '/api/public/payments/webhook'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -212,18 +264,23 @@ export interface FileRouteTypes {
     | '/admin'
     | '/afiliado'
     | '/app'
+    | '/confirmar-compra'
     | '/login'
+    | '/mcp'
     | '/pagamento'
+    | '/pagamento-retorno'
     | '/pedido'
     | '/sobre-halftone'
     | '/validate-access-code'
     | '/verify-admin'
+    | '/.well-known/oauth-protected-resource'
     | '/api/drive-file'
-    | '/api/stripe-webhook'
     | '/catalogo/$token'
+    | '/.lovable/oauth/consent'
     | '/api/public/desktop-activate'
     | '/api/public/download-windows'
     | '/api/public/infinitepay-webhook'
+    | '/api/public/payments/webhook'
     | '/lovable/email/queue/process'
   id:
     | '__root__'
@@ -232,18 +289,23 @@ export interface FileRouteTypes {
     | '/admin'
     | '/afiliado'
     | '/app'
+    | '/confirmar-compra'
     | '/login'
+    | '/mcp'
     | '/pagamento'
+    | '/pagamento-retorno'
     | '/pedido'
     | '/sobre-halftone'
     | '/validate-access-code'
     | '/verify-admin'
+    | '/.well-known/oauth-protected-resource'
     | '/api/drive-file'
-    | '/api/stripe-webhook'
     | '/catalogo/$token'
+    | '/.lovable/oauth/consent'
     | '/api/public/desktop-activate'
     | '/api/public/download-windows'
     | '/api/public/infinitepay-webhook'
+    | '/api/public/payments/webhook'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
@@ -253,18 +315,23 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AfiliadoRoute: typeof AfiliadoRoute
   AppRoute: typeof AppRoute
+  ConfirmarCompraRoute: typeof ConfirmarCompraRoute
   LoginRoute: typeof LoginRoute
+  McpRoute: typeof McpRoute
   PagamentoRoute: typeof PagamentoRoute
+  PagamentoRetornoRoute: typeof PagamentoRetornoRoute
   PedidoRoute: typeof PedidoRoute
   SobreHalftoneRoute: typeof SobreHalftoneRoute
   ValidateAccessCodeRoute: typeof ValidateAccessCodeRoute
   VerifyAdminRoute: typeof VerifyAdminRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiDriveFileRoute: typeof ApiDriveFileRoute
-  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   CatalogoTokenRoute: typeof CatalogoTokenRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicDesktopActivateRoute: typeof ApiPublicDesktopActivateRoute
   ApiPublicDownloadWindowsRoute: typeof ApiPublicDownloadWindowsRoute
   ApiPublicInfinitepayWebhookRoute: typeof ApiPublicInfinitepayWebhookRoute
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
@@ -305,6 +372,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/confirmar-compra': {
+      id: '/confirmar-compra'
+      path: '/confirmar-compra'
+      fullPath: '/confirmar-compra'
+      preLoaderRoute: typeof ConfirmarCompraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -312,11 +386,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pagamento': {
       id: '/pagamento'
       path: '/pagamento'
       fullPath: '/pagamento'
       preLoaderRoute: typeof PagamentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pagamento-retorno': {
+      id: '/pagamento-retorno'
+      path: '/pagamento-retorno'
+      fullPath: '/pagamento-retorno'
+      preLoaderRoute: typeof PagamentoRetornoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pedido': {
@@ -347,6 +435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/drive-file': {
       id: '/api/drive-file'
       path: '/api/drive-file'
@@ -354,18 +449,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDriveFileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/stripe-webhook': {
-      id: '/api/stripe-webhook'
-      path: '/api/stripe-webhook'
-      fullPath: '/api/stripe-webhook'
-      preLoaderRoute: typeof ApiStripeWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/catalogo/$token': {
       id: '/catalogo/$token'
       path: '/catalogo/$token'
       fullPath: '/catalogo/$token'
       preLoaderRoute: typeof CatalogoTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/desktop-activate': {
@@ -389,6 +484,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicInfinitepayWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/queue/process': {
       id: '/lovable/email/queue/process'
       path: '/lovable/email/queue/process'
@@ -405,18 +507,24 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AfiliadoRoute: AfiliadoRoute,
   AppRoute: AppRoute,
+  ConfirmarCompraRoute: ConfirmarCompraRoute,
   LoginRoute: LoginRoute,
+  McpRoute: McpRoute,
   PagamentoRoute: PagamentoRoute,
+  PagamentoRetornoRoute: PagamentoRetornoRoute,
   PedidoRoute: PedidoRoute,
   SobreHalftoneRoute: SobreHalftoneRoute,
   ValidateAccessCodeRoute: ValidateAccessCodeRoute,
   VerifyAdminRoute: VerifyAdminRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiDriveFileRoute: ApiDriveFileRoute,
-  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   CatalogoTokenRoute: CatalogoTokenRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicDesktopActivateRoute: ApiPublicDesktopActivateRoute,
   ApiPublicDownloadWindowsRoute: ApiPublicDownloadWindowsRoute,
   ApiPublicInfinitepayWebhookRoute: ApiPublicInfinitepayWebhookRoute,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport

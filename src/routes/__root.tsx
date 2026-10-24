@@ -1,5 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
+import { AgentBrowserTools } from "@/components/AgentBrowserTools";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -108,6 +109,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         />
       </head>
       <body>
+        <AgentBrowserTools />
         {children}
         <Toaster richColors position="top-right" />
         <Scripts />

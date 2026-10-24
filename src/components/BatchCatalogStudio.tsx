@@ -146,28 +146,22 @@ export default function BatchCatalogStudio({ onClose }: { onClose: () => void })
   const toggleColor = (color: string) => setSettings((current) => ({ ...current, colors: current.colors.includes(color) ? current.colors.filter((item) => item !== color) : [...current.colors, color] }));
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => setSettings((current) => ({ ...current, [key]: value }));
 
-  const processOne = async (item: BatchFile, order: number, id: string, start: number, config: Settings): Promise<BatchFile | null> => {
-    const code = `${config.prefix.toUpperCase()}-${String(Math.max(1, start + order)).padStart(3, "0")}`;
+  const processOne = async (item: BatchFile, order: number, id: string, start: number): Promise<BatchFile | null> => {
+    const code = `${settings.prefix.toUpperCase()}-${String(start + order).padStart(3, "0")}`;
     setFiles((current) => current.map((entry) => entry.id === item.id ? { ...entry, status: "processing", code, error: undefined } : entry));
     try {
-      const combinations = config.models.flatMap((model) => config.colors.map((color) => ({ model, color })));
+      const combinations = settings.models.flatMap((model) => settings.colors.map((color) => ({ model, color })));
       if (combinations.length > 24) throw new Error("Escolha no máximo 24 combinações de modelo e cor.");
       if (item.file.size > 20 * 1024 * 1024) throw new Error("PNG maior que 20 MB.");
-      // createImageBitmap não existe em alguns navegadores (Safari antigo): degrada para <img>.
-      let artImage: ImageBitmap | undefined;
-      try {
-        artImage = await createImageBitmap(item.file);
-      } catch {
-        artImage = undefined;
-      }
+      const artImage = await createImageBitmap(item.file);
       let blobs: Blob[];
       try {
         blobs = [];
         for (const combination of combinations) {
-          blobs.push(await createCatalogMockup({ art: item.file, artImage, logo, model: MODEL_MAP[combination.model] ?? "careca", color: combination.color, brandName: config.brandName, watermarkText: config.watermarkText, watermark: config.watermark, watermarkColor: config.watermarkColor, watermarkOpacity: config.watermarkOpacity, printSize: config.printSize, position: config.position as "Peito" | "Centro" | "Costas" }));
+          blobs.push(await createCatalogMockup({ art: item.file, artImage, logo, model: MODEL_MAP[combination.model] ?? "careca", color: combination.color, brandName: settings.brandName, watermarkText: settings.watermarkText, watermark: settings.watermark, watermarkColor: settings.watermarkColor, watermarkOpacity: settings.watermarkOpacity, printSize: settings.printSize, position: settings.position as "Peito" | "Centro" | "Costas" }));
         }
       } finally {
-        artImage?.close();
+        artImage.close();
       }
       const prepared = await prepareUpload({ data: { batchId: id, code, originalName: item.file.name, mockupCount: blobs.length } });
       const uploads = [supabase.storage.from("catalog-assets").uploadToSignedUrl(prepared.original.path, prepared.original.token, item.file, { contentType: "image/png" })];
@@ -176,11 +170,10 @@ export default function BatchCatalogStudio({ onClose }: { onClose: () => void })
         if (!target) throw new Error("Destino de mockup inválido.");
         uploads.push(supabase.storage.from("catalog-assets").uploadToSignedUrl(target.path, target.token, blobs[index], { contentType: "image/jpeg" }));
       }
-      // Aguarda TODOS os envios antes de decidir: evita corrida entre retry e uploads antigos.
-      const uploaded = await Promise.allSettled(uploads);
-      const failedUpload = uploaded.find((result) => result.status === "rejected" || (result.status === "fulfilled" && result.value.error));
-      if (failedUpload) throw new Error("Falha ao enviar uma imagem do catálogo.");
-      const result: any = await completeProduct({ data: { batchId: id, code, order, originalName: item.file.name, originalPath: prepared.original.path, mockupPaths: prepared.mockups.map((target) => target.path), settings: { ...config, logoName: logo?.name } } });
+      const uploaded = await Promise.all(uploads);
+      const failedUpload = uploaded.find((result) => result.error);
+      if (failedUpload?.error) throw new Error("Falha ao enviar uma imagem do catálogo.");
+      const result: any = await completeProduct({ data: { batchId: id, code, order, originalName: item.file.name, originalPath: prepared.original.path, mockupPaths: prepared.mockups.map((target) => target.path), settings: { ...settings, logoName: logo?.name } } });
       const completed: BatchFile = { ...item, status: "done", code: result.code, mockups: result.mockups, pdfMockup: blobs[0] };
       setFiles((current) => current.map((entry) => entry.id === item.id ? completed : entry));
       return completed;
@@ -201,23 +194,20 @@ export default function BatchCatalogStudio({ onClose }: { onClose: () => void })
     if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
     pdfUrlRef.current = null;
     setPdfUrl(null);
-    // Congela as configurações no início: alterações no painel durante a fila
-    // não podem mudar os arquivos do meio da execução (geração inconsistente).
-    const config: Settings = { ...settings };
     setFiles((current) => current.map((item) => ({ ...item, status: "waiting", error: undefined, code: undefined, mockups: 0, pdfMockup: undefined })));
     try {
-      const started: any = await createBatch({ data: { name: `${config.brandName || "Catálogo"} ${new Date().toLocaleDateString("pt-BR")}`, total: files.length, settings: { ...config, logoName: logo?.name } } });
+      const started: any = await createBatch({ data: { name: `${settings.brandName || "Catálogo"} ${new Date().toLocaleDateString("pt-BR")}`, total: files.length, settings: { ...settings, logoName: logo?.name } } });
       setBatchId(started.id);
       let successes = 0;
       let errors = 0;
       const completedProducts: BatchFile[] = [];
-      const workFiles = config.sortBy === "name"
+      const workFiles = settings.sortBy === "name"
         ? [...files].sort((a, b) => a.file.name.localeCompare(b.file.name, "pt-BR"))
         : files;
       for (let index = 0; index < workFiles.length && runningRef.current; index += 1) {
         let succeeded: BatchFile | null = null;
         for (let attempt = 0; attempt < 3 && !succeeded && runningRef.current; attempt += 1) {
-          succeeded = await processOne(workFiles[index], index, started.id, started.start, config);
+          succeeded = await processOne(workFiles[index], index, started.id, started.start);
           if (!succeeded && attempt < 2) await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
         }
         if (succeeded) { successes += 1; completedProducts.push(succeeded); }
@@ -231,7 +221,7 @@ export default function BatchCatalogStudio({ onClose }: { onClose: () => void })
       await finishBatch({ data: { id: started.id, completed: successes, failed: errors } });
        if (completedProducts.length) {
          try {
-           const readyUrl = await preparePdf(completedProducts, config);
+           const readyUrl = await preparePdf(completedProducts, settings);
            if (readyUrl) {
              downloadPdf(readyUrl);
              toast.success(errors ? "PDF baixado; revise os arquivos com falha." : "Catálogo concluído e PDF baixado!");
@@ -255,18 +245,14 @@ export default function BatchCatalogStudio({ onClose }: { onClose: () => void })
     if (!batchId || runningRef.current) return;
     const index = files.findIndex((entry) => entry.id === item.id);
     const firstCode = Number(files.find((entry) => entry.code)?.code?.split("-").pop()) || 1;
-    // Mantém o mesmo código original do arquivo mesmo após reordenar a lista.
-    const ownNumber = Number(item.code?.split("-").pop());
-    const base = item.code && Number.isFinite(ownNumber) ? Math.max(1, ownNumber - index) : firstCode;
-    const config: Settings = { ...settings };
     runningRef.current = true;
     setRunning(true);
     try {
-      const succeeded = await processOne(item, index, batchId, base, config);
+      const succeeded = await processOne(item, index, batchId, firstCode);
       if (succeeded) {
         const updated = files.map((entry) => entry.id === item.id ? succeeded : entry);
         await finishBatch({ data: { id: batchId, completed: updated.filter((entry) => entry.status === "done").length, failed: updated.filter((entry) => entry.status === "error").length } });
-        const readyUrl = await preparePdf(updated.filter((entry) => entry.status === "done"), config);
+        const readyUrl = await preparePdf(updated.filter((entry) => entry.status === "done"), settings);
         if (readyUrl) downloadPdf(readyUrl);
       }
     } catch (error) {
@@ -294,8 +280,6 @@ export default function BatchCatalogStudio({ onClose }: { onClose: () => void })
     products.forEach((product, index) => { const y = 32 + (index % 42) * 6; if (index && index % 42 === 0) { pdf.addPage(); pdf.text("Índice", 16, 20); } pdf.text(`${product.code}  |  ${product.file.name.replace(/\.[^.]+$/, "")}  |  ${money(configuration.price)}`, 16, y); });
     for (const [index, product] of products.entries()) {
       pdf.addPage(); pdf.setFontSize(18); pdf.text(product.code ?? "", 16, 18); pdf.setFontSize(13); pdf.text(product.file.name.replace(/\.[^.]+$/, ""), 16, 27); if (images[index]) pdf.addImage(images[index], "JPEG", 25, 36, 160, 160); pdf.setFontSize(11); pdf.text(`Preço: ${money(configuration.price)}`, 16, 210); pdf.text(`${configuration.productType} em ${configuration.fabric}. Tamanhos ${configuration.sizes.join(", ")}.`, 16, 220, { maxWidth: 178 });
-      // Devolve um quadro ao navegador a cada 8 páginas: o PDF monta sem congelar a UI.
-      if (index % 8 === 7) await new Promise((resolve) => setTimeout(resolve, 0));
     }
     pdf.addPage(); pdf.setFillColor(11, 16, 28); pdf.rect(0, 0, 210, 297, "F"); pdf.setTextColor(255, 214, 10); pdf.setFontSize(24); pdf.text(brand, 105, 140, { align: "center" });
     const nextUrl = URL.createObjectURL(pdf.output("blob"));

@@ -6,7 +6,7 @@ const schema = z.object({
 });
 
 export const generateImageFromPrompt = createServerFn({ method: "POST" })
-  .validator((d) => schema.parse(d))
+  .inputValidator((d) => schema.parse(d))
   .handler(async ({ data }) => {
     const { assertAccessAuthenticated } = await import("./access-guard.server");
     await assertAccessAuthenticated();

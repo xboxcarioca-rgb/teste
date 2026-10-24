@@ -24,10 +24,13 @@ export const Route = createFileRoute("/api/drive-file")({
           let thumbnailLink: string | undefined;
 
           if (coverFolderId) {
-            const image = await findDriveFolderCover(path, coverFolderId);
+            const coverIndex = Number(url.searchParams.get("coverIndex") ?? "0");
+            if (!Number.isSafeInteger(coverIndex) || coverIndex < 0 || coverIndex > 1_000_000_000)
+              return new Response("Prévia inválida.", { status: 400 });
+            const image = await findDriveFolderCover(path, coverFolderId, coverIndex);
             fileId = image?.id ?? null;
             thumbnailLink = image?.thumbnailLink;
-            validationPath = [...path, coverFolderId];
+            validationPath = image?.libraryPath ?? [...path, coverFolderId];
             if (!fileId) return new Response(null, { status: 404 });
           }
           if (!fileId) return new Response("Arquivo não informado.", { status: 400 });

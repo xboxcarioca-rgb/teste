@@ -123,7 +123,7 @@ const signupSchema = z.object({
 });
 
 export const signupAffiliate = createServerFn({ method: "POST" })
-  .validator(signupSchema)
+  .inputValidator(signupSchema)
   .handler(async ({ data }) => {
     const email = data.email.toLowerCase();
     const { data: exists } = await db().from("affiliates").select("id").eq("email", email).maybeSingle();
@@ -156,7 +156,7 @@ const loginSchema = z.object({
 });
 
 export const loginAffiliate = createServerFn({ method: "POST" })
-  .validator(loginSchema)
+  .inputValidator(loginSchema)
   .handler(async ({ data }) => {
     const email = data.email.toLowerCase();
     const { data: row } = await db().from("affiliates").select("*").eq("email", email).maybeSingle();
@@ -222,7 +222,7 @@ const saleSchema = z.object({
 });
 
 export const submitAffiliateSale = createServerFn({ method: "POST" })
-  .validator(saleSchema)
+  .inputValidator(saleSchema)
   .handler(async ({ data }) => {
     const aff = await requireAffiliate();
     const { data: row, error } = await db()
@@ -245,7 +245,7 @@ export const submitAffiliateSale = createServerFn({ method: "POST" })
   });
 
 export const updateAffiliateProfile = createServerFn({ method: "POST" })
-  .validator(
+  .inputValidator(
     z.object({
       pixKey: z.string().trim().max(200).optional(),
       whatsapp: z.string().trim().max(40).optional(),
@@ -354,7 +354,7 @@ async function sendProvisionalEmailForSale(email: string, code: string) {
 }
 
 export const activateAffiliateSale = createServerFn({ method: "POST" })
-  .validator(activateSaleSchema)
+  .inputValidator(activateSaleSchema)
   .handler(async ({ data }) => {
     requireAdmin();
     const { data: sale } = await db()
@@ -400,7 +400,7 @@ export const activateAffiliateSale = createServerFn({ method: "POST" })
   });
 
 export const markAffiliateSalePaid = createServerFn({ method: "POST" })
-  .validator(z.object({ saleId: z.string().uuid(), note: z.string().max(500).optional() }))
+  .inputValidator(z.object({ saleId: z.string().uuid(), note: z.string().max(500).optional() }))
   .handler(async ({ data }) => {
     requireAdmin();
     await db()
@@ -411,7 +411,7 @@ export const markAffiliateSalePaid = createServerFn({ method: "POST" })
   });
 
 export const deleteAffiliateSale = createServerFn({ method: "POST" })
-  .validator(z.object({ saleId: z.string().uuid() }))
+  .inputValidator(z.object({ saleId: z.string().uuid() }))
   .handler(async ({ data }) => {
     requireAdmin();
     await db().from("affiliate_sales").delete().eq("id", data.saleId);
@@ -419,7 +419,7 @@ export const deleteAffiliateSale = createServerFn({ method: "POST" })
   });
 
 export const lookupAffiliateBySlug = createServerFn({ method: "GET" })
-  .validator(z.object({ slug: z.string().trim().min(1).max(40) }))
+  .inputValidator(z.object({ slug: z.string().trim().min(1).max(40) }))
   .handler(async ({ data }) => {
     const { data: row } = await db()
       .from("affiliates")

@@ -111,7 +111,7 @@ function PedidoPage() {
   }
 
   function whatsAppLink(text: string) {
-    return `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(text)}`;
+    return `https://api.whatsapp.com/send?phone=${WHATSAPP}&text=${encodeURIComponent(text)}`;
   }
 
   return (

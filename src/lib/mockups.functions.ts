@@ -73,7 +73,7 @@ async function generateOne(prompt: string, dataUrl: string, apiKey: string): Pro
 }
 
 export const generateShirtMockups = createServerFn({ method: "POST" })
-  .validator((d) => inputSchema.parse(d))
+  .inputValidator((d) => inputSchema.parse(d))
   .handler(async ({ data }) => {
     const { assertAccessAuthenticated } = await import("./access-guard.server");
     await assertAccessAuthenticated();

@@ -44,7 +44,7 @@ function safeFileName(name: string) {
 }
 
 export const createHalftoneOrder = createServerFn({ method: "POST" })
-  .validator(createSchema)
+  .inputValidator(createSchema)
   .handler(async ({ data }) => {
     const order_code = genOrderCode();
     const ext = data.image_mime === "image/png" ? "png" : data.image_mime === "image/webp" ? "webp" : "jpg";
@@ -96,7 +96,7 @@ const getOrderSchema = z.object({
 });
 
 export const getHalftoneOrderPublic = createServerFn({ method: "GET" })
-  .validator(getOrderSchema)
+  .inputValidator(getOrderSchema)
   .handler(async ({ data }) => {
     const { data: row } = await db
       .from("halftone_orders")
@@ -151,7 +151,7 @@ export const listHalftoneOrders = createServerFn({ method: "GET" }).handler(asyn
 const orderIdSchema = z.object({ id: z.string().uuid() });
 
 export const getHalftoneImageUrl = createServerFn({ method: "POST" })
-  .validator(orderIdSchema)
+  .inputValidator(orderIdSchema)
   .handler(async ({ data }) => {
     await requireAdmin();
     const { data: row } = await db
@@ -168,7 +168,7 @@ export const getHalftoneImageUrl = createServerFn({ method: "POST" })
   });
 
 export const markHalftoneOrderDelivered = createServerFn({ method: "POST" })
-  .validator(orderIdSchema)
+  .inputValidator(orderIdSchema)
   .handler(async ({ data }) => {
     await requireAdmin();
     await db
@@ -179,7 +179,7 @@ export const markHalftoneOrderDelivered = createServerFn({ method: "POST" })
   });
 
 export const markHalftoneOrderPaidManual = createServerFn({ method: "POST" })
-  .validator(orderIdSchema)
+  .inputValidator(orderIdSchema)
   .handler(async ({ data }) => {
     await requireAdmin();
     await db
@@ -194,7 +194,7 @@ export const markHalftoneOrderPaidManual = createServerFn({ method: "POST" })
   });
 
 export const deleteHalftoneOrder = createServerFn({ method: "POST" })
-  .validator(orderIdSchema)
+  .inputValidator(orderIdSchema)
   .handler(async ({ data }) => {
     await requireAdmin();
     const { data: row } = await db

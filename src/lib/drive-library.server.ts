@@ -24,6 +24,8 @@ type DriveFileMetadata = DriveLibraryItem & {
 const LIST_CACHE_TTL_MS = 30_000;
 const listCache = new Map<string, { expiresAt: number; files: DriveLibraryItem[] }>();
 const inFlightLists = new Map<string, Promise<DriveLibraryItem[]>>();
+const coverCache = new Map<string, { expiresAt: number; images: FolderCover[] }>();
+type FolderCover = DriveLibraryItem & { libraryPath: string[] };
 
 function driveHeaders() {
   const lovableKey = process.env["LOVABLE_API_KEY"];
@@ -177,39 +179,43 @@ export async function listDriveChildren(
 export async function findDriveFolderCover(
   path: string[],
   folderId: string,
-): Promise<DriveLibraryItem | null> {
+  coverIndex = 0,
+): Promise<FolderCover | null> {
   const normalizedPath = normalizeLibraryPath(path);
   await validateLibraryPath(normalizedPath);
   const siblings = await listChildrenUnchecked(normalizedPath[normalizedPath.length - 1]);
   const folder = siblings.find((item) => item.id === folderId || item.targetId === folderId);
   if (!folder?.isFolder) throw new Error("Pasta fora da biblioteca permitida.");
 
-  const resolvedFolderId = await resolveFolderId(folder.id);
-  const params = new URLSearchParams({
-    q: `'${resolvedFolderId.replaceAll("'", "\\'")}' in parents and trashed = false and mimeType contains 'image/'`,
-    fields:
-      "files(id,name,mimeType,modifiedTime,size,thumbnailLink,shortcutDetails(targetId,targetMimeType))",
-    pageSize: "1",
-    orderBy: "name",
-    supportsAllDrives: "true",
-    includeItemsFromAllDrives: "true",
-  });
-  const response = await driveFetch(`/files?${params.toString()}`);
-  const text = await response.text();
-  if (!response.ok) throw new Error(`Falha ao buscar capa no Drive (${response.status}): ${text}`);
-  const parsed = JSON.parse(text) as { files?: DriveFileMetadata[] };
-  const image = parsed.files?.[0];
-  if (!image) return null;
-  return {
-    id: image.id,
-    name: image.name,
-    mimeType: image.mimeType,
-    modifiedTime: image.modifiedTime,
-    size: image.size,
-    isFolder: false,
-    isShortcut: false,
-    thumbnailLink: image.thumbnailLink,
-  };
+  const cacheKey = [...normalizedPath, folder.id].join(",");
+  const cached = coverCache.get(cacheKey);
+  let images = cached && cached.expiresAt > Date.now() ? cached.images : undefined;
+  if (!images) {
+    images = [];
+    const queue = [[...normalizedPath, folder.id]];
+    const visited = new Set<string>();
+    for (let scanned = 0; queue.length && scanned < 20 && images.length < 24; scanned += 1) {
+      const currentPath = queue.shift();
+      const currentId = currentPath?.at(-1);
+      if (!currentPath || !currentId || visited.has(currentId)) continue;
+      visited.add(currentId);
+      const children = await listChildrenUnchecked(currentId);
+      for (const child of children) {
+        if (!child.isFolder && child.mimeType.startsWith("image/")) {
+          images.push({ ...child, libraryPath: currentPath });
+          if (images.length === 24) break;
+        } else if (child.isFolder && currentPath.length < 20) {
+          queue.push([...currentPath, child.id]);
+        }
+      }
+    }
+    for (let index = images.length - 1; index > 0; index -= 1) {
+      const other = Math.floor(Math.random() * (index + 1));
+      [images[index], images[other]] = [images[other], images[index]];
+    }
+    coverCache.set(cacheKey, { images, expiresAt: Date.now() + 300_000 });
+  }
+  return images.length ? images[coverIndex % images.length] : null;
 }
 
 export async function assertFileInFolderPath(fileId: string, path: string[]) {

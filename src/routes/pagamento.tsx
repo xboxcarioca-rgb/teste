@@ -1,39 +1,30 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, CheckCircle2, MessageCircle } from "lucide-react";
-import { z } from "zod";
+import { useState } from 'react';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { ArrowLeft, CheckCircle2, CreditCard, LockKeyhole, QrCode } from 'lucide-react';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { PaymentTestModeBanner } from '@/components/PaymentTestModeBanner';
+import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
+import { pricingOptions } from '@/components/landing/data';
+import { getStripeEnvironment } from '@/lib/stripe';
+import { paymentPriceId } from '@/lib/payment-catalog';
+import { preparePurchase } from '@/lib/payments.functions';
 
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { pricingOptions } from "@/components/landing/data";
+const searchSchema = z.object({ plano: z.enum(['mensal', 'anual']).catch('anual') });
 
-const WHATSAPP_NUMBER = "5511943152441";
-
-const searchSchema = z.object({
-  plano: z.enum(["mensal", "anual"]).catch("anual"),
-});
-
-export const Route = createFileRoute("/pagamento")({
+export const Route = createFileRoute('/pagamento')({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Pagamento do plano — DTFLEXPRO" },
-      {
-        name: "description",
-        content:
-          "Finalize o pagamento do plano mensal ou anual da DTFLEXPRO via Kiwify (Pix, cartão ou boleto) e libere seu acesso.",
-      },
-      { property: "og:type", content: "website" },
-      { property: "og:title", content: "Pagamento do plano — DTFLEXPRO" },
-      {
-        property: "og:description",
-        content: "Finalize o pagamento do plano mensal ou anual da DTFLEXPRO via Kiwify (Pix, cartão ou boleto).",
-      },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Pagamento do plano — DTFLEXPRO" },
-      {
-        name: "twitter:description",
-        content: "Finalize o pagamento do plano mensal ou anual da DTFLEXPRO via Kiwify (Pix, cartão ou boleto).",
-      },
+      { title: 'Assinar DTFLEXPRO' },
+      { name: 'description', content: 'Assine o plano mensal ou anual DTFLEXPRO com liberação automática do acesso.' },
+      { property: 'og:title', content: 'Assinar DTFLEXPRO' },
+      { property: 'og:description', content: 'Pagamento seguro dos planos DTFLEXPRO com liberação automática.' },
+      { property: 'og:type', content: 'website' },
+      { name: 'twitter:card', content: 'summary' },
     ],
   }),
   component: PagamentoPage,
@@ -42,80 +33,107 @@ export const Route = createFileRoute("/pagamento")({
 function PagamentoPage() {
   const { plano } = Route.useSearch();
   const plan = pricingOptions.find((option) => option.billing === plano) ?? pricingOptions[0];
-
-  function handleSendReceipt() {
-    const message = encodeURIComponent(
-      `Olá! Acabei de pagar o ${plan.label} (${plan.price}) da DTFLEXPRO. Segue o comprovante.`,
-    );
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, "_blank", "noopener,noreferrer");
-  }
+  const [email, setEmail] = useState('');
+  const [checkoutEmail, setCheckoutEmail] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'cartao' | 'pix'>('cartao');
+  const priceId = paymentPriceId(plano, paymentMethod === 'pix' ? 'pix' : 'card');
 
   return (
-    <div className="min-h-screen bg-background py-10">
-      <div className="mx-auto max-w-2xl px-6">
-        <Link
-          to="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar para a página inicial
+    <main className="min-h-screen bg-background">
+      <PaymentTestModeBanner />
+      <div className="mx-auto max-w-3xl px-6 py-10">
+        <Link to="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Voltar para a página inicial
         </Link>
-
-        <Card className="rounded-lg border-border/70 bg-card/60 p-8 shadow-[var(--shadow-panel)] backdrop-blur-xl">
-          <div className="space-y-3 border-b border-border/70 pb-6">
-            <p className="text-sm uppercase tracking-[0.24em] text-brand">Pagamento</p>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{plan.label}</h1>
-              <div className="text-right">
-                <div className="text-3xl font-semibold tracking-tight text-[oklch(0.86_0.18_92)]">{plan.price}</div>
-                <div className="text-sm text-[oklch(0.86_0.18_92)]/80">{plan.cadence}</div>
-              </div>
+        <Card className="rounded-lg border-border/70 bg-card/60 p-6 shadow-[var(--shadow-panel)] md:p-8">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/70 pb-6">
+            <div>
+              <p className="text-sm uppercase tracking-[0.24em] text-brand">Assinatura</p>
+              <h1 className="mt-2 text-3xl font-semibold">{plan.label}</h1>
+              <p className="mt-2 max-w-xl text-sm leading-7 text-muted-foreground">{plan.summary}</p>
             </div>
-            <p className="text-sm leading-7 text-muted-foreground">{plan.summary}</p>
+            <div className="text-right">
+              <div className="text-3xl font-semibold text-brand">{plan.price}</div>
+              <div className="text-sm text-muted-foreground">{plan.cadence}</div>
+            </div>
           </div>
-
           <div className="grid gap-3 py-6">
             {plan.benefits.map((benefit) => (
               <div key={benefit} className="flex items-start gap-3 text-sm text-muted-foreground">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                <span className="leading-7">{benefit}</span>
+                <span>{benefit}</span>
               </div>
             ))}
           </div>
-
-          <div className="space-y-3 border-t border-border/70 pt-6">
-            <a
-              href={plan.checkoutHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-11 w-full items-center justify-center rounded-md bg-[oklch(0.86_0.18_92)] px-8 text-sm font-medium text-black shadow-[0_0_24px_oklch(0.86_0.18_92/0.45)] transition-colors hover:bg-[oklch(0.80_0.18_92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              Pagar com Kiwify ({plan.price})
-            </a>
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full bg-[oklch(0.62_0.19_150)] text-white hover:bg-[oklch(0.56_0.19_150)] border-transparent shadow-[0_0_24px_oklch(0.62_0.19_150/0.45)]"
-              onClick={handleSendReceipt}
-            >
-              <MessageCircle className="h-4 w-4" />
-              Enviar comprovante no WhatsApp
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              O pagamento abre em uma segunda tela (Nova aba), assim esta página continua aberta para você voltar.
-              Após pagar, envie o comprovante pelo WhatsApp para liberarmos seu acesso.
-            </p>
-            <div className="pt-2">
-              <Link
-                to="/"
-                className="text-sm font-medium text-brand underline-offset-4 hover:underline"
+          <div className="border-t border-border/70 pt-6">
+            <Label>Forma de pagamento</Label>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant={paymentMethod === 'cartao' ? 'default' : 'outline'}
+                onClick={() => { setPaymentMethod('cartao'); setCheckoutEmail(null); }}
               >
-                Voltar para a landpage
-              </Link>
+                <CreditCard className="h-4 w-4" /> Cartão
+              </Button>
+              <Button
+                type="button"
+                variant={paymentMethod === 'pix' ? 'default' : 'outline'}
+                onClick={() => { setPaymentMethod('pix'); setCheckoutEmail(null); }}
+              >
+                <QrCode className="h-4 w-4" /> PIX
+              </Button>
             </div>
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              {paymentMethod === 'pix'
+                ? `PIX à vista: acesso por ${plano === 'anual' ? '12 meses' : '30 dias'}, sem renovação automática.`
+                : 'O cartão renova automaticamente conforme o período escolhido.'}
+            </p>
           </div>
+          {!checkoutEmail ? (
+            <form
+              className="mt-6 space-y-4 border-t border-border/70 pt-6"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const value = email.trim().toLowerCase();
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return;
+                setPreparing(true);
+                setConfirmationSent(false);
+                try {
+                  const result = await preparePurchase({ data: { email: value, priceId, origin: window.location.origin, environment: getStripeEnvironment() } });
+                  if (!result.ok) {
+                    setConfirmationSent(false);
+                    return;
+                  }
+                  if (result.ready) setCheckoutEmail(value);
+                  else setConfirmationSent(true);
+                } finally {
+                  setPreparing(false);
+                }
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="payment-email">E-mail para receber seu acesso</Label>
+                <Input id="payment-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
+              </div>
+              <Button type="submit" size="lg" className="w-full" disabled={preparing}>
+                <LockKeyhole className="h-4 w-4" /> {preparing ? 'Verificando…' : 'Continuar para o pagamento'}
+              </Button>
+              {confirmationSent && <p className="rounded-md border border-brand/30 bg-brand-muted p-3 text-sm text-foreground">Enviamos um link de confirmação. Abra seu e-mail para continuar com segurança.</p>}
+              <p className="text-xs leading-5 text-muted-foreground">Use o mesmo e-mail no qual deseja receber seu código de acesso.</p>
+            </form>
+          ) : (
+            <div className="border-t border-border/70 pt-6">
+              <div className="mb-4 flex items-center justify-between gap-4 text-sm">
+                <span className="truncate text-muted-foreground">Acesso para: {checkoutEmail}</span>
+                <Button variant="ghost" size="sm" onClick={() => setCheckoutEmail(null)}>Alterar</Button>
+              </div>
+              <StripeEmbeddedCheckout priceId={priceId} customerEmail={checkoutEmail} />
+            </div>
+          )}
         </Card>
       </div>
-    </div>
+    </main>
   );
 }

@@ -26,8 +26,43 @@
     {
       "idx": 3,
       "version": "7",
-      "when": 1792800000000,
-      "tag": "0003_create_catalog_assets_bucket",
+      "when": 1791984985454,
+      "tag": "0003_add_custom_access_subscriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791996454297,
+      "tag": "0004_harden_purchase_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791997386780,
+      "tag": "0005_allow_oauth_users_to_read_own_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792006473046,
+      "tag": "0006_harden_payment_and_device_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792006680920,
+      "tag": "0007_bind_device_sessions_to_access_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792850652379,
+      "tag": "0008_create_catalog_assets_bucket",
       "breakpoints": true
     }
   ]

@@ -7,7 +7,7 @@ const folderSchema = z.object({
 });
 
 export const listArtLibrary = createServerFn({ method: "POST" })
-  .validator((input: unknown) => folderSchema.parse(input))
+  .inputValidator((input: unknown) => folderSchema.parse(input))
   .handler(async ({ data }) => {
     const { assertAccessAuthenticated } = await import("@/lib/access-guard.server");
     const { DRIVE_ROOT_FOLDER_ID, listDriveChildren } = await import("@/lib/drive-library.server");

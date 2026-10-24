@@ -20,6 +20,7 @@ import { listArtLibrary } from "@/lib/drive-library.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { detectArtPaper, isHalftoneArt } from "@/lib/art-library-info";
+import { LibraryFolderCover } from "@/components/LibraryFolderCover";
 
 type LibraryItem = {
   id: string;
@@ -223,7 +224,9 @@ export default function ArtLibrary({
           <div className="absolute inset-0 grid place-items-center bg-secondary">
             <Icon className="size-12 text-muted-foreground/70" strokeWidth={1.5} />
           </div>
-          {imageSrc ? (
+          {imageSrc && item.isFolder ? (
+            <LibraryFolderCover src={imageSrc} name={item.name} />
+          ) : imageSrc ? (
             <img
               src={imageSrc}
               alt={`Prévia de ${item.name}`}

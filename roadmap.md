@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Alternar automaticamente as capas das pastas entre estampas internas, inclusive em subpastas
+
 - [x] Mostrar somente Download nas artes em halftone e Usar + Download nas demais
 - [x] Identificar automaticamente o formato A2/A3/A4 na biblioteca
 
@@ -46,8 +48,38 @@
 - [x] Ajustar o upload para preencher e recortar exatamente o formato A2/A3/A4 escolhido
 - [x] Detectar limites reais da arte no PNG e enquadrar automaticamente em A2/A3/A4 sem cortar conteúdo, mantendo recorte manual opcional
 - [x] Fazer −/+ ajustar a arte principal em A2/A3/A4 e salvar o enquadramento exato no PNG final
-- [ ] Permitir arrastar manualmente a arte no A2/A3/A4 e conservar a posição escolhida no PNG final *(pende do fonte da ferramenta — não alterar o bundle minificado)*
-- [x] Corrigir a criação do Catálogo em Lote e os erros de geração por arquivo *(bucket catalog-assets na migração 0003 + config congelada na fila + fallback de createImageBitmap + uploads com allSettled)*
-- [x] Acelerar o PDF e iniciar seu download automaticamente ao terminar do lote *(montagem em blocos sem travar a UI + download automático ao concluir a fila)*
+- [x] Permitir arrastar manualmente a arte no A2/A3/A4 e conservar a posição escolhida no PNG final
+- [x] Corrigir a criação do Catálogo em Lote e os erros de geração por arquivo
+- [x] Acelerar o PDF e iniciar seu download automaticamente ao terminar o lote
 - [x] Corrigir o enquadramento A2/A3/A4 para preservar textos completos no PNG final
 - [x] Impedir que a limpeza final apague textos e elementos separados da arte
+
+- [x] Ativar os pagamentos embutidos e preparar a cobrança dos planos dentro do app
+- [x] Cadastrar os planos R$ 47 mensal e R$ 147 anual no provedor de pagamentos
+- [x] Implementar checkout e regras de compra, cancelamento e troca de plano
+
+## Unificação de pagamentos e acesso
+- [x] Usar catálogo único de R$ 47 mensal e R$ 147 anual para cartão e PIX
+- [x] Exigir confirmação por e-mail antes de alterar uma conta existente
+- [x] Manter somente o webhook de planos Stripe e retirar vendas legadas Nubank/InfinitePay
+- [x] Registrar estados pendente, pago, falhou e expirou na página de retorno
+- [x] Restringir reativação de conta revogada/excluída ao administrador
+- [x] Limitar tentativas de código e invalidar o código anterior ao regenerar
+- [x] Preservar acesso até o fim do período já pago quando a renovação falha
+- [x] Validar abertura do checkout de cartão e PIX na nova conta de pagamentos reativada
+- [ ] Cobranças reais — bloqueadas até concluir a ativação da conta de pagamentos (ativação da conta e chaves reais); checkout em modo de teste já validado no preview
+- [x] Tornar eventos de pagamento reprocessáveis sem duplicar acesso
+- [x] Separar liberação paga do envio do e-mail e registrar falhas de entrega
+- [x] Bloquear PIX quando já existir assinatura de cartão vigente
+- [x] Proteger confirmação de compra contra uso simultâneo e consulta de retorno com segredo próprio
+- [x] Aplicar limites reais de dispositivo ao navegador e ao aplicativo Windows
+- [x] Reconciliar troca/cancelamento e preservar limites definidos pelo administrador
+- [x] Validar uma compra completa com cartão no preview após as correções
+- [x] Retirar o aviso amarelo de suporte abaixo do botão "Acabei de comprar" (método de pagamento resolvido)
+
+## Integrações de agentes MCP
+- [x] Ativar OAuth gerenciado e tela de consentimento
+- [x] Expor consultas protegidas de planos, acesso e assinatura
+- [x] Vincular o login por e-mail e código ao consentimento OAuth
+- [x] Adicionar ferramentas de leitura para agentes no navegador
+- [ ] Publicar a nova revisão para disponibilizar o endpoint MCP externo

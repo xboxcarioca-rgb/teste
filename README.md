@@ -2,7 +2,10 @@
 
 Landing page + ferramentas profissionais de DTF em uma só aplicação: **Halftone inteligente**, **Biblioteca de Artes**, **Gestão DTF**, **Montagem (gang sheet)**, **Estúdio de Mockups**, **Catálogo em Lote** e **Calculadora DTF**.
 
-> Última versão consolidada: landing page atualizada com todas as ferramentas, correções do Catálogo em Lote (criação, erros por arquivo e PDF automático) e migração do bucket de storage.
+> Última versão consolidada (pacote de 24/10): projeto completo com **checkout Stripe embutido** (cartão + PIX),
+> páginas de retorno/confirmação de compra, webhooks de pagamento, gestão de assinatura, ativação do app desktop,
+> distribuição do instalador Windows, fila de e-mails e **migrations 0003 a 0008**. Mantém as correções do Catálogo
+> em Lote e a landing page com todas as ferramentas. O bloco de planos da landing abre o checkout da **Kiwify**.
 
 ---
 
@@ -19,6 +22,20 @@ Landing page + ferramentas profissionais de DTF em uma só aplicação: **Halfto
 | Canvas/Foto | fabric, `@imgly/background-removal`, ImageBitmap |
 | Desktop | Electron + NSIS (`electron/`, `setup.nsi`) |
 | Deploy | Cloudflare (Wrangler/Nitro) ou qualquer host Node/estático |
+
+## Pagamentos e acesso
+
+| Fluxo | Implementação |
+| --- | --- |
+| Planos na landing (`#precos`) | Botão abre a Kiwify (`mensal` / `anual`) em nova aba; ao voltar com `?comprou=1` aparece a faixa "Acabei de comprar" com o WhatsApp de suporte |
+| Checkout no site (`/pagamento`) | Stripe Embedded Checkout — cartão (assinatura) e PIX (pagamento único que estende o acesso) |
+| Retorno / confirmação | `/pagamento-retorno` e `/confirmar-compra` |
+| Webhooks | `src/routes/api/public/payments/webhook.ts` (Stripe) e `api/public/infinitepay-webhook.ts` (legado, pedido avulso R$ 5) |
+| Assinatura | `src/components/SubscriptionManager.tsx` + `src/lib/payments.functions.ts` |
+| App desktop | `api/public/download-windows.ts` (instalador) e `api/public/desktop-activate.ts` (ativação por código) |
+| E-mails | `src/routes/lovable/email/queue/process.ts` (fila) |
+
+> Sem `VITE_PAYMENTS_CLIENT_TOKEN` a tela `/pagamento` entra em modo de teste (aviso) — veja `.env.example`.
 
 ## Ferramentas
 

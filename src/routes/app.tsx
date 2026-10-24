@@ -14,6 +14,7 @@ import {
   BriefcaseBusiness,
   Images,
   Lock,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getAccessSession, pingAccessSession, logoutAccessSession } from "@/lib/access.functions";
@@ -25,6 +26,7 @@ const DTFGangSheetStudio = lazy(() => import("@/components/DTFGangSheetStudio"))
 const ArtLibrary = lazy(() => import("@/components/ArtLibrary"));
 const DTFBusinessManager = lazy(() => import("@/components/DTFBusinessManager"));
 const BatchCatalogStudio = lazy(() => import("@/components/BatchCatalogStudio"));
+const SubscriptionManager = lazy(() => import("@/components/SubscriptionManager").then((module) => ({ default: module.SubscriptionManager })));
 
 function AppError() {
   return (
@@ -110,6 +112,7 @@ function AppPage() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [showManagement, setShowManagement] = useState(false);
   const [showBatchCatalog, setShowBatchCatalog] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -263,15 +266,13 @@ function AppPage() {
           <span className="min-w-0 truncate">
             ⚠️ Seu acesso está{" "}
             {exp?.tone === "danger" ? "expirado/quase expirando" : "perto de expirar"}. Entre em
-            contato com o administrador para renovar.
+            escolha um plano para renovar.
           </span>
           <a
-            href={`https://wa.me/${ADMIN_WHATSAPP}?text=${renewMsg}`}
-            target="_blank"
-            rel="noreferrer"
+            href="/pagamento?plano=mensal"
             className="flex shrink-0 items-center gap-1 rounded-md bg-black/80 px-2 py-0.5 text-[10px] font-bold uppercase text-white hover:bg-black sm:text-[11px]"
           >
-            Renovar pelo WhatsApp
+            Renovar acesso
           </a>
         </div>
       )}
@@ -348,6 +349,14 @@ function AppPage() {
                   </Button>
                 }
               />
+              <Button
+                variant="outline"
+                className="h-11 justify-start px-3 text-xs font-semibold shadow-lg sm:h-10"
+                onClick={() => setShowSubscription(true)}
+              >
+                <CreditCard className="h-4 w-4" />
+                Minha assinatura
+              </Button>
             </div>
           )}
           <Button
@@ -429,6 +438,14 @@ function AppPage() {
             }
           >
             <BatchCatalogStudio onClose={() => setShowBatchCatalog(false)} />
+          </Suspense>
+        </ClientOnly>
+      )}
+
+      {showSubscription && (
+        <ClientOnly fallback={null}>
+          <Suspense fallback={null}>
+            <SubscriptionManager onClose={() => setShowSubscription(false)} />
           </Suspense>
         </ClientOnly>
       )}

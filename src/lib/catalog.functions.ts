@@ -43,7 +43,7 @@ async function context() {
 }
 
 export const createCatalogBatch = createServerFn({ method: "POST" })
-  .validator((input) => z.object({ name: z.string().min(2).max(100), total: z.number().int().min(20).max(100), settings: settingsSchema }).parse(input))
+  .inputValidator((input) => z.object({ name: z.string().min(2).max(100), total: z.number().int().min(20).max(100), settings: settingsSchema }).parse(input))
   .handler(async ({ data }) => {
     const { db, access } = await context();
     const prefix = data.settings.prefix.toUpperCase();
@@ -63,7 +63,7 @@ export const createCatalogBatch = createServerFn({ method: "POST" })
   });
 
 export const prepareCatalogProductUpload = createServerFn({ method: "POST" })
-  .validator((input) => z.object({
+  .inputValidator((input) => z.object({
     batchId: z.string().uuid(),
     code: z.string().min(3).max(30),
     originalName: z.string().min(1).max(180),
@@ -91,7 +91,7 @@ export const prepareCatalogProductUpload = createServerFn({ method: "POST" })
   });
 
 export const completeCatalogProduct = createServerFn({ method: "POST" })
-  .validator((input) => z.object({
+  .inputValidator((input) => z.object({
     batchId: z.string().uuid(),
     code: z.string().min(3).max(30),
     order: z.number().int().min(0).max(99),
@@ -138,7 +138,7 @@ export const completeCatalogProduct = createServerFn({ method: "POST" })
   });
 
 export const finishCatalogBatch = createServerFn({ method: "POST" })
-  .validator((input) => z.object({ id: z.string().uuid(), completed: z.number().int(), failed: z.number().int() }).parse(input))
+  .inputValidator((input) => z.object({ id: z.string().uuid(), completed: z.number().int(), failed: z.number().int() }).parse(input))
   .handler(async ({ data }) => {
     const { db, access } = await context();
     const { error } = await db.from("catalog_batches").update({ status: data.completed === 0 ? "failed" : "completed", completed_items: data.completed, failed_items: data.failed }).eq("id", data.id).eq("user_access_id", access.accessId);
@@ -147,7 +147,7 @@ export const finishCatalogBatch = createServerFn({ method: "POST" })
   });
 
 export const publishCatalogBatch = createServerFn({ method: "POST" })
-  .validator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { db, access } = await context();
     const { data: batch, error } = await db.from("catalog_batches").update({ status: "published", published_at: new Date().toISOString() }).eq("id", data.id).eq("user_access_id", access.accessId).select("public_token").single();
@@ -156,7 +156,7 @@ export const publishCatalogBatch = createServerFn({ method: "POST" })
   });
 
 export const saveCatalogTemplate = createServerFn({ method: "POST" })
-  .validator((input) => z.object({ name: z.string().min(2).max(80), settings: settingsSchema }).parse(input))
+  .inputValidator((input) => z.object({ name: z.string().min(2).max(80), settings: settingsSchema }).parse(input))
   .handler(async ({ data }) => {
     const { db, access } = await context();
     const { error } = await db.from("catalog_templates").upsert({ user_access_id: access.accessId, name: data.name, settings: data.settings }, { onConflict: "user_access_id,name" });
@@ -171,7 +171,7 @@ export const listCatalogTemplates = createServerFn({ method: "GET" }).handler(as
 });
 
 export const getCatalogBatch = createServerFn({ method: "GET" })
-  .validator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { db, access } = await context();
     const { data: batch } = await db.from("catalog_batches").select("*").eq("id", data.id).eq("user_access_id", access.accessId).maybeSingle();
@@ -184,7 +184,7 @@ export const getCatalogBatch = createServerFn({ method: "GET" })
   });
 
 export const getPublishedCatalog = createServerFn({ method: "GET" })
-  .validator((input) => z.object({ token: z.string().uuid() }).parse(input))
+  .inputValidator((input) => z.object({ token: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;

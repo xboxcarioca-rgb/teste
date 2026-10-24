@@ -40,7 +40,7 @@ const securityHeaders = createMiddleware().server(async ({ next }) => {
       "camera=()",
       "microphone=()",
       "geolocation=()",
-      "payment=(self)",
+      "payment=(self \"https://js.stripe.com\" \"https://hooks.stripe.com\")",
       "usb=()",
       "magnetometer=()",
       "gyroscope=()",

@@ -1,24 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Eye, EyeOff, ShieldAlert } from "lucide-react";
-import { validateAccessCode, releaseOwnDeviceSession, reactivateOwnAccess } from "@/lib/access.functions";
+import { validateAccessCode, releaseOwnDeviceSession } from "@/lib/access.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { oauthReturnPath } from "@/lib/oauth-return-path";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>) => ({
     code: typeof search.code === "string" ? search.code : "",
     email: typeof search.email === "string" ? search.email : "",
     expired: typeof search.expired === "string" ? search.expired : "",
+    ...(typeof search.next === "string" ? { next: oauthReturnPath(search.next) } : {}),
   }),
   head: () => ({
     meta: [
       { title: "DTFLEXPRO | Validar código" },
       { name: "description", content: "Valide seu código de acesso para entrar na plataforma." },
+      { property: "og:title", content: "DTFLEXPRO | Validar código" },
+      { property: "og:description", content: "Valide seu código de acesso para entrar na plataforma." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: LoginPage,
@@ -27,48 +34,27 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const search = Route.useSearch();
+  const next = search.next ?? "/";
   const validateCode = useServerFn(validateAccessCode);
   const releaseDevice = useServerFn(releaseOwnDeviceSession);
-  const reactivateAccess = useServerFn(reactivateOwnAccess);
   const [email, setEmail] = useState(search.email);
   const [code, setCode] = useState(search.code);
   const [loading, setLoading] = useState(false);
   const [releasing, setReleasing] = useState(false);
-  const [reactivating, setReactivating] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [conflict, setConflict] = useState<string | null>(null);
   const [revoked, setRevoked] = useState<string | null>(null);
+  const [deviceKey, setDeviceKey] = useState("");
 
-  async function handleReactivate() {
-    const trimmedEmail = email.trim();
-    const trimmedCode = code.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail) || trimmedCode.length < 6) {
-      toast.error("Preencha e-mail e código antes de liberar o acesso");
-      return;
+  useEffect(() => {
+    const storageKey = "dtflexpro-device-key";
+    let stored = window.localStorage.getItem(storageKey);
+    if (!stored) {
+      stored = crypto.randomUUID();
+      window.localStorage.setItem(storageKey, stored);
     }
-    try {
-      setReactivating(true);
-      const result = await reactivateAccess({ data: { email: trimmedEmail, code: trimmedCode } });
-      if (!result.ok) {
-        toast.error(result.error ?? "Não foi possível reativar o acesso");
-        return;
-      }
-      toast.success("Acesso reativado para 1 dispositivo. Entrando...");
-      setRevoked(null);
-      setConflict(null);
-      const login = await validateCode({ data: { email: trimmedEmail, code: trimmedCode } });
-      if (!login.ok) {
-        toast.error(login.error ?? "Falha ao entrar após reativar");
-        return;
-      }
-      window.location.href = login.redirectTo;
-    } catch (err) {
-      console.error(err);
-      toast.error("Erro ao reativar acesso");
-    } finally {
-      setReactivating(false);
-    }
-  }
+    setDeviceKey(stored);
+  }, []);
 
   async function handleRelease() {
     const trimmedEmail = email.trim();
@@ -86,7 +72,7 @@ function LoginPage() {
       }
       toast.success("Acesso liberado. Entrando neste dispositivo...");
       setConflict(null);
-      const login = await validateCode({ data: { email: trimmedEmail, code: trimmedCode } });
+      const login = await validateCode({ data: { email: trimmedEmail, code: trimmedCode, deviceKey } });
       if (!login.ok) {
         toast.error(login.error ?? "Falha ao entrar após liberar");
         return;
@@ -118,7 +104,7 @@ function LoginPage() {
       setConflict(null);
       setRevoked(null);
       const result = await validateCode({
-        data: { email: trimmedEmail, code: trimmedCode },
+        data: { email: trimmedEmail, code: trimmedCode, deviceKey, oauth: next !== "/" },
       });
       if (!result.ok) {
         if ((result as any).expired) {
@@ -136,6 +122,21 @@ function LoginPage() {
         return;
       }
 
+      if (next !== "/") {
+        const tokenHash = "oauthTokenHash" in result ? result.oauthTokenHash : undefined;
+        const oauthType = "oauthType" in result ? result.oauthType : undefined;
+        if (!tokenHash || !oauthType) {
+          toast.error("Não foi possível autorizar a integração agora.");
+          return;
+        }
+        const { error: authError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: oauthType });
+        if (authError) {
+          toast.error("Este código não pôde autorizar a integração. Solicite um novo código ao suporte.");
+          return;
+        }
+        window.location.href = next;
+        return;
+      }
       window.location.href = result.redirectTo;
     } catch (error) {
       console.error(error);
@@ -162,16 +163,13 @@ function LoginPage() {
               <div>
                 <p className="font-semibold">Seu acesso expirou</p>
                 <p className="mt-1 text-amber-100/80">
-                  Seu plano venceu. Para continuar usando a plataforma, entre em contato com o administrador
-                  pelo WhatsApp para renovar. Apenas o admin pode liberar o acesso novamente.
+                  Seu plano venceu. Escolha um plano para renovar. Contas revogadas continuam dependendo do administrador.
                 </p>
                 <a
-                  href={`https://wa.me/5511943152441?text=${encodeURIComponent(`Olá! Meu acesso ao DTFlexPRO expirou (${email || "meu e-mail"}) e quero renovar.`)}`}
-                  target="_blank"
-                  rel="noreferrer"
+                  href="/pagamento?plano=mensal"
                   className="mt-3 inline-flex rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-black hover:bg-emerald-400"
                 >
-                  Renovar pelo WhatsApp
+                  Renovar acesso
                 </a>
               </div>
             </div>
@@ -187,26 +185,18 @@ function LoginPage() {
                 <p className="font-semibold">Acesso já em uso em outro dispositivo</p>
                 <p className="mt-1 text-red-200/80">{conflict}</p>
                 <p className="mt-2 text-xs text-red-200/70">
-                  Plano permite apenas <strong>1 dispositivo</strong>. Libere para usar aqui ou reative se foi revogado.
+                  Plano permite apenas <strong>1 dispositivo</strong>. Libere para usar aqui.
                 </p>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3">
               <Button
                 type="button"
                 onClick={handleRelease}
-                disabled={releasing || reactivating || loading}
+                disabled={releasing || loading}
                 variant="destructive"
               >
                 {releasing ? "Liberando..." : "Liberar p/ outro PC"}
-              </Button>
-              <Button
-                type="button"
-                onClick={handleReactivate}
-                disabled={releasing || reactivating || loading}
-                variant="default"
-              >
-                {reactivating ? "Liberando..." : "Liberar (revogado)"}
               </Button>
             </div>
           </div>
@@ -220,18 +210,10 @@ function LoginPage() {
                 <p className="font-semibold">Seu acesso foi revogado</p>
                 <p className="mt-1 text-amber-100/80">{revoked}</p>
                 <p className="mt-2 text-xs text-amber-100/70">
-                  Ao liberar, o acesso será reativado para uso em <strong>1 dispositivo</strong>.
+                  Somente o administrador pode reativar este acesso.
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              onClick={handleReactivate}
-              disabled={reactivating || loading}
-              className="mt-3 w-full"
-            >
-              {reactivating ? "Liberando..." : "Liberar acesso (1 dispositivo)"}
-            </Button>
           </div>
         )}
 

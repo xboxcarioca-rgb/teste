@@ -35,9 +35,9 @@ export const featureItems: FeatureItem[] = [
   },
   {
     icon: "printer",
-    title: "Export A2, A3 e A4 em 300 DPI real",
+    title: "Export A4 e A3 em 300 DPI real",
     description:
-      "Salve em PNG A4 (2480x3508), A3 (3508x4961) ou A2 (4961x7016) com metadados pHYs cravados em 300 DPI, prontos para DTF.",
+      "Salve em PNG A4 (2480x3508) ou A3 (3508x4961) com metadados pHYs cravados em 300 DPI, prontos para DTF.",
   },
 ];
 
@@ -82,7 +82,7 @@ export const steps: StepItem[] = [
     icon: "download",
     title: "Visualize e exporte em 300 DPI",
     description:
-      "Confira a retícula em zoom de impressão e baixe o PNG final em A2, A3 ou A4 com tamanho físico e metadados reais de 300 DPI.",
+      "Confira a retícula em zoom de impressão e baixe o PNG final em A4 ou A3 com tamanho físico e metadados reais de 300 DPI.",
   },
 ];
 
@@ -93,13 +93,12 @@ export const pricingOptions: PricingOption[] = [
     price: "R$ 47",
     cadence: "/mês",
     summary:
-      "Ideal para produzir com Halftone, Biblioteca de Artes, Gestão DTF, montagem profissional, mockups e Catálogo em Lote.",
-    checkoutHref: "https://pay.kiwify.com.br/Fgy8j0i",
+      "Ideal para produzir com Halftone, Biblioteca de Artes, Gestão DTF, montagem profissional e estúdio de mockups.",
+    checkoutHref: "/pagamento?plano=mensal",
     benefits: [
       "Halftone inteligente para qualquer cor de tecido",
       "Exportação em PNG 300 DPI pronto para DTF",
       "Biblioteca, Gestão DTF, montagem e mockups",
-      "Catálogo em Lote com mockups e PDF automático",
       "Suporte via WhatsApp",
     ],
   },
@@ -111,7 +110,7 @@ export const pricingOptions: PricingOption[] = [
     badge: "Melhor custo anual",
     summary:
       "A melhor escolha para estúdios e produção contínua durante todo o ano, com economia significativa.",
-    checkoutHref: "https://pay.kiwify.com.br/SppG0CG",
+    checkoutHref: "/pagamento?plano=anual",
     benefits: [
       "Todas as ferramentas da plataforma com economia anual",
       "Acesso contínuo durante 12 meses",
@@ -145,7 +144,7 @@ export const faqItems: FaqItem[] = [
   {
     question: "O que está incluído além do Halftone?",
     answer:
-      "Biblioteca de Artes, montagem DTF em tamanho livre, estúdio de mockups, Catálogo em Lote (20 a 100 PNGs com mockups e PDF) e Gestão DTF com produção, pedidos, clientes, estoque, financeiro, impostos e relatórios.",
+      "Biblioteca de Artes, montagem DTF em tamanho livre, estúdio de mockups e Gestão DTF com produção, pedidos, clientes, estoque, financeiro, impostos e relatórios.",
   },
   {
     question: "Como funciona o suporte?",

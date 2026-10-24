@@ -14,7 +14,7 @@ function sanitizePhone(input?: string | null): string | null {
 
 export function WhatsAppFloat({ phone }: { phone?: string | null } = {}) {
   const number = sanitizePhone(phone) ?? DEFAULT_PHONE;
-  const href = `https://wa.me/${number}?text=Ol%C3%A1%21%20Quero%20pedir%20um%20halftone%20pronto%20%28R%24%205%29%20na%20DTFLEXPRO.`;
+  const href = `https://api.whatsapp.com/send?phone=${number}&text=Ol%C3%A1%21%20Quero%20pedir%20um%20halftone%20pronto%20%28R%24%205%29%20na%20DTFLEXPRO.`;
   return (
     <TooltipProvider delayDuration={120}>
       <Tooltip>

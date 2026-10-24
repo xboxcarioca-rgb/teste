@@ -8,6 +8,7 @@ interface AccessSessionData {
   accessId: string;
   sessionToken: string;
   expiresAt: string;
+  deviceSessionId?: string;
 }
 
 function config() {
@@ -48,11 +49,28 @@ export async function getAuthenticatedAccess(): Promise<{ accessId: string; emai
     .eq("id", accessId)
     .maybeSingle();
 
+  const { data: deviceSession } = session.data?.deviceSessionId
+    ? await (supabaseAdmin as any)
+        .from("access_device_sessions")
+        .select("active, session_token_hash, session_expires_at")
+        .eq("id", session.data.deviceSessionId)
+        .eq("access_id", accessId)
+        .maybeSingle()
+    : { data: null };
+
+  const secret = process.env.SESSION_SECRET;
+  const expectedHash = secret
+    ? (await import("node:crypto")).createHmac("sha256", secret).update(sessionToken).digest("hex")
+    : "";
+  const durableSessionActive = deviceSession?.active &&
+    deviceSession.session_token_hash === expectedHash &&
+    (!deviceSession.session_expires_at || new Date(deviceSession.session_expires_at).getTime() > Date.now());
+
   const active =
     row &&
     row.status !== "deleted" &&
     row.status !== "revoked" &&
-    row.active_session_token === sessionToken &&
+    (durableSessionActive || row.active_session_token === sessionToken) &&
     (!row.expires_at || new Date(row.expires_at).getTime() > Date.now());
 
   if (!active) {

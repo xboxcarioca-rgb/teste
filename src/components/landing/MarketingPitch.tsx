@@ -9,7 +9,6 @@ const speedBenefits = [
   "📐 Montagem DTF em tamanho livre e 300 DPI",
   "📊 Gestão de produção, clientes, estoque e financeiro",
   "👕 Mockups masculinos, femininos, infantis e camisa dobrada",
-  "🗂️ Catálogo em lote com mockups e PDF automático",
 ];
 
 const reticulas = [
@@ -25,9 +24,9 @@ const checks = [
   "Halftone para camisas pretas",
   "Halftone para camisas brancas",
   "Halftone para camisas coloridas",
-  "PNG A2, A3 e A4 com metadados em 300 DPI",
+  "PNG A3 e A4 com metadados em 300 DPI",
   "12 formatos de retícula, incluindo Ben-Day",
-  "Biblioteca, Gestão DTF, montagem, mockups e Catálogo em Lote",
+  "Biblioteca, Gestão DTF, montagem e mockups",
 ];
 
 export function MarketingPitch() {

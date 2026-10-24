@@ -5,7 +5,6 @@ import {
   FileStack,
   FolderSearch2,
   ImageIcon,
-  Images,
   Palette,
 } from "lucide-react";
 
@@ -47,12 +46,6 @@ const platformTools = [
     title: "Fluxo completo em um só lugar",
     description:
       "Importe PNG, JPEG, PDF ou PSD, use imagens por link, prepare a impressão, organize seus arquivos e acompanhe o negócio sem sair da plataforma.",
-  },
-  {
-    icon: Images,
-    title: "Catálogo em lote",
-    description:
-      "Envie de 20 a 100 PNGs e gere produtos com mockups, códigos e marca d'água em lote. Ao terminar, o catálogo em PDF é baixado automaticamente.",
   },
   {
     icon: Calculator,

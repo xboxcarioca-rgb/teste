@@ -5,15 +5,15 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
+
+// Hosts extras liberados para o proxy de preview (Arena/E2B) e domínio próprio.
+const EXTRA_ALLOWED_HOSTS = [".e2b.app", "dtflexpro.com", ".dtflexpro.com"];
 
 export default defineConfig({
   vite: {
-    server: {
-      // Permite o host de preview do ambiente (E2B/Arena) além do domínio do app.
-      allowedHosts: [".e2b.app", "dtflexpro.com", ".dtflexpro.com"],
-    },
-    preview: {
-      allowedHosts: [".e2b.app", "dtflexpro.com", ".dtflexpro.com"],
-    },
+    plugins: [mcpPlugin()],
+    server: { allowedHosts: EXTRA_ALLOWED_HOSTS },
+    preview: { allowedHosts: EXTRA_ALLOWED_HOSTS },
   },
 });

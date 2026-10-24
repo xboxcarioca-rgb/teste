@@ -25,6 +25,8 @@ const adminPasswordSchema = z.object({
 const accessCodeSchema = z.object({
   email: z.string().trim().email().max(255),
   code: z.string().trim().min(6).max(32),
+  deviceKey: z.string().trim().min(16).max(256).optional(),
+  oauth: z.boolean().optional(),
 });
 
 const revokeSchema = z.object({
@@ -78,6 +80,7 @@ interface AccessSessionData {
   accessId: string;
   sessionToken: string;
   expiresAt: string;
+  deviceSessionId?: string;
 }
 
 const adminCookieName = "dtflexpro-admin-session";
@@ -202,6 +205,10 @@ function generateAccessCode() {
     .replace(/[^A-Z0-9]/gi, "")
     .toUpperCase()
     .slice(0, 8);
+}
+
+function deviceKeyHash(deviceKey: string) {
+  return createHmac("sha256", getSessionSecret()).update(deviceKey).digest("hex");
 }
 
 async function sendAccessEmail({
@@ -347,7 +354,7 @@ export const getAdminSession = createServerFn({ method: "GET" }).handler(async (
 });
 
 export const verifyAdminPassword = createServerFn({ method: "POST" })
-  .validator(adminPasswordSchema)
+  .inputValidator(adminPasswordSchema)
   .handler(async ({ data }) => {
     const db = getDb();
     const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
@@ -382,11 +389,20 @@ export const logoutAdminSession = createServerFn({ method: "POST" }).handler(asy
 });
 
 export const validateAccessCode = createServerFn({ method: "POST" })
-  .validator(accessCodeSchema)
+  .inputValidator(accessCodeSchema)
   .handler(async ({ data }) => {
     const db = getDb();
     const email = normalizeEmail(data.email);
     const code = normalizeCode(data.code);
+    const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const { count: recentFailures } = await db.from("security_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("event_type", `access_code_failure:${email}`)
+      .eq("ip", ip)
+      .eq("success", false)
+      .gte("created_at", fifteenMinutesAgo);
+    if ((recentFailures ?? 0) >= 8) return { ok: false, error: "Muitas tentativas. Aguarde alguns minutos e tente novamente." };
 
     // Não filtra por expires_at nem por status: códigos vencidos OU revogados ainda validam.
     // O painel do cliente mostra o aviso de expiração e pede para contatar o admin para renovar.
@@ -401,6 +417,7 @@ export const validateAccessCode = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (!accessRow) {
+      await db.from("security_logs").insert({ event_type: `access_code_failure:${email}`, ip, user_agent: getRequestHeader("user-agent") ?? "unknown", success: false });
       await logSecurity("access_code_validation", false);
       return { ok: false, error: genericAccessError };
     }
@@ -440,30 +457,45 @@ export const validateAccessCode = createServerFn({ method: "POST" })
 
 
 
-    // Controle de sessão única por dispositivo
-    // Regra: abrir várias abas / re-logar no MESMO navegador (mesmo IP) NÃO é outro dispositivo.
-    // Só bloqueia quando o IP de origem é diferente do IP da sessão ativa.
+    // Dispositivos são identificados por uma chave persistente do app, nunca pelo IP.
     const currentIp = getRequestIP({ xForwardedFor: true }) ?? "unknown";
     const currentUa = getRequestHeader("user-agent") ?? "unknown";
     const deviceLimit = accessRow.device_limit ?? 1;
-    if (deviceLimit <= 1 && accessRow.active_session_token) {
-      const startedAt = accessRow.active_session_started_at
-        ? new Date(accessRow.active_session_started_at).getTime()
-        : 0;
-      const sessionMaxAgeMs = 30 * 24 * 60 * 60 * 1000;
-      const sessionStillFresh = Date.now() - startedAt < sessionMaxAgeMs;
-      const sameIp = accessRow.active_session_ip && accessRow.active_session_ip === currentIp;
-      // Só bloqueia se a sessão é recente E o IP é diferente do registrado.
-      // Sem IP registrado (sessões antigas) ou mesmo IP → libera (várias abas / re-login no mesmo navegador).
-      if (sessionStillFresh && accessRow.active_session_ip && !sameIp) {
-        await logSecurity("access_device_conflict", false);
-        await logDeviceConflict(email, accessRow.id);
-        notifyOwnerOfConflict(email).catch(() => {});
-        return { ok: false, error: deviceConflictError };
-      }
+    const rawDeviceKey = data.deviceKey ?? `${currentUa}|legacy-browser`;
+    const hashedDeviceKey = deviceKeyHash(rawDeviceKey);
+    const { data: knownDevice } = await db.from("access_device_sessions")
+      .select("id")
+      .eq("access_id", accessRow.id)
+      .eq("device_key_hash", hashedDeviceKey)
+      .eq("device_type", "browser")
+      .maybeSingle();
+    const { count: activeDevices } = await db.from("access_device_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("access_id", accessRow.id)
+      .eq("active", true);
+    if (!knownDevice && (activeDevices ?? 0) >= deviceLimit) {
+      await logSecurity("access_device_conflict", false);
+      await logDeviceConflict(email, accessRow.id);
+      notifyOwnerOfConflict(email).catch(() => {});
+      return { ok: false, error: deviceConflictError };
     }
 
     const sessionToken = randomUUID();
+    const { data: deviceSession, error: deviceError } = await db.from("access_device_sessions").upsert({
+      access_id: accessRow.id,
+      device_key_hash: hashedDeviceKey,
+      device_type: "browser",
+      label: currentUa.slice(0, 180),
+      user_agent: currentUa,
+      last_ip: currentIp,
+      active: true,
+      session_token_hash: deviceKeyHash(sessionToken),
+      session_expires_at: accessRow.expires_at,
+      last_seen_at: new Date().toISOString(),
+      revoked_at: null,
+    }, { onConflict: "access_id,device_key_hash,device_type" }).select("id").single();
+    if (deviceError || !deviceSession) return { ok: false, error: genericAccessError };
+
     const expiresAt = refreshedExpiresAt(accessRow);
     const { error: updateError } = await db
       .from("user_access")
@@ -490,9 +522,26 @@ export const validateAccessCode = createServerFn({ method: "POST" })
       accessId: accessRow.id,
       sessionToken,
       expiresAt,
+      deviceSessionId: deviceSession.id,
     });
 
     await logSecurity("access_code_validation", true);
+    if (data.oauth) {
+      let link = await supabaseAdmin.auth.admin.generateLink({ type: "magiclink", email });
+      let oauthType: "magiclink" | "signup" = "magiclink";
+      if (link.error) {
+        const password = `${randomBytes(24).toString("hex")}A1!`;
+        link = await supabaseAdmin.auth.admin.generateLink({ type: "signup", email, password });
+        oauthType = "signup";
+      }
+      const tokenHash = link.data?.properties?.hashed_token;
+      if (link.error || !tokenHash) {
+        await logSecurity("oauth_access_bridge", false);
+        return { ok: false, error: "Não foi possível autorizar a integração agora." };
+      }
+      await logSecurity("oauth_access_bridge", true);
+      return { ok: true, redirectTo: "/app", oauthTokenHash: tokenHash, oauthType };
+    }
     return { ok: true, redirectTo: "/app" };
   });
 
@@ -501,6 +550,7 @@ export const getAccessSession = createServerFn({ method: "GET" }).handler(async 
   const expiresAt = session.data?.expiresAt;
   const accessId = session.data?.accessId;
   const sessionToken = session.data?.sessionToken;
+  const deviceSessionId = session.data?.deviceSessionId;
 
   const baseValid = Boolean(session.data?.authenticated && expiresAt);
 
@@ -517,11 +567,23 @@ export const getAccessSession = createServerFn({ method: "GET" }).handler(async 
     .eq("id", accessId)
     .maybeSingle();
 
+  const { data: deviceSession } = deviceSessionId
+    ? await db.from("access_device_sessions")
+        .select("active, session_token_hash, session_expires_at")
+        .eq("id", deviceSessionId)
+        .eq("access_id", accessId)
+        .maybeSingle()
+    : { data: null };
+
+  const legacySessionActive = row?.active_session_token === sessionToken;
+  const durableSessionActive = deviceSession?.active &&
+    deviceSession.session_token_hash === deviceKeyHash(sessionToken) &&
+    (!deviceSession.session_expires_at || new Date(deviceSession.session_expires_at).getTime() > Date.now());
   const stillActive =
     row &&
     row.status !== "deleted" &&
     row.status !== "revoked" &&
-    row.active_session_token === sessionToken;
+    (durableSessionActive || legacySessionActive);
 
 
   if (!stillActive) {
@@ -548,6 +610,7 @@ export const logoutAccessSession = createServerFn({ method: "POST" }).handler(as
   const session = await useSession<AccessSessionData>(getAccessSessionConfig());
   const accessId = session.data?.accessId;
   const sessionToken = session.data?.sessionToken;
+  const deviceSessionId = session.data?.deviceSessionId;
 
   if (accessId && sessionToken) {
     const db = getDb();
@@ -557,6 +620,10 @@ export const logoutAccessSession = createServerFn({ method: "POST" }).handler(as
       .update({ active_session_token: null, active_session_started_at: null })
       .eq("id", accessId)
       .eq("active_session_token", sessionToken);
+  }
+
+  if (deviceSessionId) {
+    await getDb().from("access_device_sessions").update({ active: false, revoked_at: new Date().toISOString() }).eq("id", deviceSessionId);
   }
 
   await clearSession(getAccessSessionConfig());
@@ -571,13 +638,13 @@ export const getAdminDashboardData = createServerFn({ method: "GET" }).handler(a
     db
       .from("user_access")
       .select(
-        "id, email, phone, access_code, status, expires_at, created_at, plan_code, device_limit, is_trial, trial_device_fp, active_session_token, active_session_started_at, active_session_ip, active_session_user_agent, last_activity_at",
+        "id, email, phone, access_code, status, expires_at, created_at, plan_code, device_limit, is_trial, trial_device_fp, active_session_token, active_session_started_at, active_session_ip, active_session_user_agent, last_activity_at, manual_expiry_override, payment_synced_expires_at",
       )
       .order("created_at", { ascending: false })
       .limit(400),
     db
       .from("payments")
-      .select("id, email, stripe_session_id, amount, status, created_at")
+      .select("id, email, stripe_session_id, amount, status, created_at, entitlement_status, email_delivery_status, email_delivery_error")
       .order("created_at", { ascending: false })
       .limit(100),
     db
@@ -663,7 +730,7 @@ const setExpirySchema = z.object({
 
 /** Admin define manualmente a data de validade do plano do cliente. */
 export const setAccessExpiry = createServerFn({ method: "POST" })
-  .validator(setExpirySchema)
+  .inputValidator(setExpirySchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -676,6 +743,7 @@ export const setAccessExpiry = createServerFn({ method: "POST" })
     const update: Record<string, any> = {
       expires_at: parsed.toISOString(),
       status: "active",
+      manual_expiry_override: true,
     };
     if (data.planCode) {
       update.plan_code = data.planCode;
@@ -691,11 +759,12 @@ export const setAccessExpiry = createServerFn({ method: "POST" })
 
 export const revokeAccess = createServerFn({ method: "POST" })
 
-  .validator(revokeSchema)
+  .inputValidator(revokeSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
 
+    const { data: row } = await db.from("user_access").select("email").eq("id", data.accessId).maybeSingle();
     const { error } = await db
       .from("user_access")
       .update({
@@ -703,10 +772,15 @@ export const revokeAccess = createServerFn({ method: "POST" })
         active_session_token: null,
         active_session_started_at: null,
       })
-      .eq("id", data.accessId);
+      .eq(row?.email ? "email" : "id", row?.email ?? data.accessId);
 
     if (error) {
       throw new Error("Não foi possível revogar o acesso");
+    }
+    if (row?.email) {
+      const { data: rows } = await db.from("user_access").select("id").eq("email", row.email);
+      const ids = (rows ?? []).map((item: { id: string }) => item.id);
+      if (ids.length) await db.from("access_device_sessions").update({ active: false, revoked_at: new Date().toISOString() }).in("access_id", ids);
     }
 
     await logSecurity("admin_revoke_access", true);
@@ -714,7 +788,7 @@ export const revokeAccess = createServerFn({ method: "POST" })
   });
 
 export const deleteAccess = createServerFn({ method: "POST" })
-  .validator(deleteSchema)
+  .inputValidator(deleteSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -741,6 +815,11 @@ export const deleteAccess = createServerFn({ method: "POST" })
 
     const { error } = await query;
     if (error) throw new Error("Não foi possível excluir a conta");
+    if (row?.email) {
+      const { data: rows } = await db.from("user_access").select("id").eq("email", row.email);
+      const ids = (rows ?? []).map((item: { id: string }) => item.id);
+      if (ids.length) await db.from("access_device_sessions").update({ active: false, revoked_at: new Date().toISOString() }).in("access_id", ids);
+    }
 
     await logSecurity("admin_delete_access", true);
     return { ok: true };
@@ -748,7 +827,7 @@ export const deleteAccess = createServerFn({ method: "POST" })
 
 
 export const updateDeviceLimit = createServerFn({ method: "POST" })
-  .validator(deviceLimitSchema)
+  .inputValidator(deviceLimitSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -768,7 +847,7 @@ export const updateDeviceLimit = createServerFn({ method: "POST" })
   });
 
 export const resetActiveSession = createServerFn({ method: "POST" })
-  .validator(revokeSchema)
+  .inputValidator(revokeSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -785,18 +864,20 @@ export const resetActiveSession = createServerFn({ method: "POST" })
       .update({ active_session_token: null, active_session_started_at: null, active_session_ip: null, active_session_user_agent: null })
       .eq("email", row.email);
     if (error) throw new Error("Não foi possível liberar a sessão");
+    const { data: rows } = await db.from("user_access").select("id").eq("email", row.email);
+    const ids = (rows ?? []).map((item: { id: string }) => item.id);
+    if (ids.length) await db.from("access_device_sessions").update({ active: false, revoked_at: new Date().toISOString() }).in("access_id", ids);
     await logSecurity("admin_reset_session", true);
     return { ok: true };
   });
 
 export const regenerateAccessCode = createServerFn({ method: "POST" })
-  .validator(revokeSchema)
+  .inputValidator(revokeSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
 
-    // Gera um código novo SEM invalidar o código antigo.
-    // Isso evita o erro "código inválido ou expirado" quando o cliente usa o código anterior.
+    // Atualiza a única credencial válida desta conta. O código anterior deixa de funcionar.
     const { data: row, error: readError } = await db
       .from("user_access")
       .select("id, email, expires_at, plan_code, device_limit")
@@ -846,7 +927,7 @@ export const regenerateAccessCode = createServerFn({ method: "POST" })
 
 
 export const generateManualAccessCode = createServerFn({ method: "POST" })
-  .validator(manualAccessSchema)
+  .inputValidator(manualAccessSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -930,7 +1011,7 @@ async function sendProvisionalEmail({
 }
 
 export const registerProvisionalAccess = createServerFn({ method: "POST" })
-  .validator(provisionalAccessSchema)
+  .inputValidator(provisionalAccessSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -967,15 +1048,23 @@ export const registerProvisionalAccess = createServerFn({ method: "POST" })
   });
 
 export const releaseOwnDeviceSession = createServerFn({ method: "POST" })
-  .validator(accessCodeSchema)
+  .inputValidator(accessCodeSchema)
   .handler(async ({ data }) => {
     const db = getDb();
     const email = normalizeEmail(data.email);
     const code = normalizeCode(data.code);
+    const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const { count: recentFailures } = await db.from("security_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("event_type", `device_release_failure:${email}`)
+      .eq("ip", ip)
+      .gte("created_at", fifteenMinutesAgo);
+    if ((recentFailures ?? 0) >= 5) return { ok: false, error: "Muitas tentativas. Aguarde alguns minutos." };
 
     const { data: accessRow } = await db
       .from("user_access")
-      .select("id, device_limit, expires_at, plan_code")
+      .select("id, device_limit, expires_at, plan_code, status")
       .eq("email", email)
       .eq("access_code", code)
       .order("created_at", { ascending: false })
@@ -983,13 +1072,24 @@ export const releaseOwnDeviceSession = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (!accessRow) {
+      await db.from("security_logs").insert({ event_type: `device_release_failure:${email}`, ip, user_agent: getRequestHeader("user-agent") ?? "unknown", success: false });
       return { ok: false, error: genericAccessError };
+    }
+    if (accessRow.status === "deleted" || accessRow.status === "revoked") {
+      return { ok: false, error: "Somente o administrador pode reativar este acesso." };
     }
 
     await db
       .from("user_access")
       .update({ status: "active", expires_at: refreshedExpiresAt(accessRow), active_session_token: null, active_session_started_at: null, active_session_ip: null, active_session_user_agent: null })
       .eq("id", accessRow.id);
+
+    await db.from("access_device_sessions")
+      .update({ active: false, revoked_at: new Date().toISOString() })
+      .eq("access_id", accessRow.id)
+      .eq("active", true);
+
+    notifyOwnerOfConflict(email).catch(() => {});
 
     await logSecurity("access_self_release", true);
     return { ok: true };
@@ -999,6 +1099,7 @@ export const pingAccessSession = createServerFn({ method: "POST" }).handler(asyn
   const session = await useSession<AccessSessionData>(getAccessSessionConfig());
   const accessId = session.data?.accessId;
   const sessionToken = session.data?.sessionToken;
+  const deviceSessionId = session.data?.deviceSessionId;
   if (!accessId || !sessionToken) return { ok: false };
   const db = getDb();
   await db
@@ -1006,45 +1107,11 @@ export const pingAccessSession = createServerFn({ method: "POST" }).handler(asyn
     .update({ last_activity_at: new Date().toISOString() })
     .eq("id", accessId)
     .eq("active_session_token", sessionToken);
+  if (deviceSessionId) {
+    await db.from("access_device_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", deviceSessionId).eq("active", true);
+  }
   return { ok: true };
 });
-
-export const reactivateOwnAccess = createServerFn({ method: "POST" })
-  .validator(accessCodeSchema)
-  .handler(async ({ data }) => {
-    const db = getDb();
-    const email = normalizeEmail(data.email);
-    const code = normalizeCode(data.code);
-
-    const { data: row } = await db
-      .from("user_access")
-      .select("id, expires_at, plan_code")
-      .eq("email", email)
-      .eq("access_code", code)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!row) {
-      return { ok: false, error: "Nenhum acesso revogado encontrado para esse e-mail e código." };
-    }
-
-    await db
-      .from("user_access")
-      .update({
-        status: "active",
-        expires_at: refreshedExpiresAt(row),
-        device_limit: 1,
-        active_session_token: null,
-        active_session_started_at: null,
-        active_session_ip: null,
-        active_session_user_agent: null,
-      })
-      .eq("id", row.id);
-
-    await logSecurity("access_self_reactivate", true);
-    return { ok: true };
-  });
 
 const deviceWarningSchema = z.object({
   accessId: z.string().uuid(),
@@ -1053,7 +1120,7 @@ const deviceWarningSchema = z.object({
 });
 
 export const sendDeviceWarning = createServerFn({ method: "POST" })
-  .validator(deviceWarningSchema)
+  .inputValidator(deviceWarningSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -1176,16 +1243,16 @@ async function sendTrialWelcomeEmail({ email, accessCode, expiresAt }: { email: 
 }
 
 export const registerTrialAccess = createServerFn({ method: "POST" })
-  .validator(trialSignupSchema)
+  .inputValidator(trialSignupSchema)
   .handler(async ({ data }) => {
     const db = getDb();
     const email = normalizeEmail(data.email);
     const phone = data.phone.replace(/[^\d+]/g, "");
     const currentIp = getRequestIP({ xForwardedFor: true }) ?? "unknown";
     const currentUa = getRequestHeader("user-agent") ?? "unknown";
-    // Fingerprint combina impressão do navegador com IP para dificultar burlas
+    // A impressão persistente identifica o dispositivo mesmo quando ele troca de rede.
     const deviceFp = createHmac("sha256", getSessionSecret())
-      .update(`${data.deviceFp}|${currentIp}`)
+      .update(data.deviceFp)
       .digest("hex")
       .slice(0, 48);
 
@@ -1204,7 +1271,10 @@ export const registerTrialAccess = createServerFn({ method: "POST" })
     const { data: existingFp } = await db
       .from("user_access")
       .select("id")
-      .eq("trial_device_fp", deviceFp)
+      .in("trial_device_fp", [
+        deviceFp,
+        createHmac("sha256", getSessionSecret()).update(`${data.deviceFp}|${currentIp}`).digest("hex").slice(0, 48),
+      ])
       .limit(1)
       .maybeSingle();
     if (existingFp) {
@@ -1244,6 +1314,18 @@ export const registerTrialAccess = createServerFn({ method: "POST" })
       return { ok: false, error: "Não foi possível criar seu teste. Tente novamente." };
     }
 
+    const { data: deviceSession } = await db.from("access_device_sessions").insert({
+      access_id: inserted.id,
+      device_key_hash: deviceKeyHash(data.deviceFp),
+      device_type: "browser",
+      label: currentUa.slice(0, 180),
+      user_agent: currentUa,
+      last_ip: currentIp,
+      active: true,
+      session_token_hash: deviceKeyHash(sessionToken),
+      session_expires_at: expiresAt,
+    }).select("id").single();
+
     const session = await useSession<AccessSessionData>(getAccessSessionConfig());
     await session.update({
       authenticated: true,
@@ -1252,6 +1334,7 @@ export const registerTrialAccess = createServerFn({ method: "POST" })
       accessId: inserted.id,
       sessionToken,
       expiresAt,
+      deviceSessionId: deviceSession?.id,
     });
 
     await sendTrialWelcomeEmail({ email, accessCode, expiresAt });
@@ -1260,7 +1343,7 @@ export const registerTrialAccess = createServerFn({ method: "POST" })
   });
 
 export const activateTrialAsPaid = createServerFn({ method: "POST" })
-  .validator(activateTrialSchema)
+  .inputValidator(activateTrialSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();

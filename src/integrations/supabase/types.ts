@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_device_sessions: {
+        Row: {
+          access_id: string
+          active: boolean
+          created_at: string
+          device_key_hash: string
+          device_type: string
+          id: string
+          label: string | null
+          last_ip: string | null
+          last_seen_at: string
+          revoked_at: string | null
+          session_expires_at: string | null
+          session_token_hash: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          access_id: string
+          active?: boolean
+          created_at?: string
+          device_key_hash: string
+          device_type?: string
+          id?: string
+          label?: string | null
+          last_ip?: string | null
+          last_seen_at?: string
+          revoked_at?: string | null
+          session_expires_at?: string | null
+          session_token_hash?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          access_id?: string
+          active?: boolean
+          created_at?: string
+          device_key_hash?: string
+          device_type?: string
+          id?: string
+          label?: string | null
+          last_ip?: string | null
+          last_seen_at?: string
+          revoked_at?: string | null
+          session_expires_at?: string | null
+          session_token_hash?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_device_sessions_access_id_fkey"
+            columns: ["access_id"]
+            isOneToOne: false
+            referencedRelation: "user_access"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       access_sessions: {
         Row: {
           created_at: string
@@ -61,6 +117,68 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      access_subscriptions: {
+        Row: {
+          access_id: string | null
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          email: string
+          environment: string
+          id: string
+          price_id: string
+          product_id: string
+          scheduled_price_id: string | null
+          status: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          access_id?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          email: string
+          environment?: string
+          id?: string
+          price_id: string
+          product_id: string
+          scheduled_price_id?: string | null
+          status?: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          access_id?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          email?: string
+          environment?: string
+          id?: string
+          price_id?: string
+          product_id?: string
+          scheduled_price_id?: string | null
+          status?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_subscriptions_access_id_fkey"
+            columns: ["access_id"]
+            isOneToOne: false
+            referencedRelation: "user_access"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       affiliate_sales: {
         Row: {
@@ -549,32 +667,106 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_webhook_events: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          environment: string
+          event_id: string
+          event_type: string
+          last_error: string | null
+          processed_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          environment: string
+          event_id: string
+          event_type: string
+          last_error?: string | null
+          processed_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          environment?: string
+          event_id?: string
+          event_type?: string
+          last_error?: string | null
+          processed_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
+          access_id: string | null
           amount: number
           created_at: string
           email: string
+          email_delivery_error: string | null
+          email_delivery_status: string
+          entitlement_status: string
+          environment: string
+          failure_reason: string | null
           id: string
+          payment_kind: string | null
+          price_id: string | null
           status: string
+          status_token_hash: string | null
           stripe_session_id: string
+          updated_at: string
         }
         Insert: {
+          access_id?: string | null
           amount?: number
           created_at?: string
           email: string
+          email_delivery_error?: string | null
+          email_delivery_status?: string
+          entitlement_status?: string
+          environment?: string
+          failure_reason?: string | null
           id?: string
+          payment_kind?: string | null
+          price_id?: string | null
           status: string
+          status_token_hash?: string | null
           stripe_session_id: string
+          updated_at?: string
         }
         Update: {
+          access_id?: string | null
           amount?: number
           created_at?: string
           email?: string
+          email_delivery_error?: string | null
+          email_delivery_status?: string
+          entitlement_status?: string
+          environment?: string
+          failure_reason?: string | null
           id?: string
+          payment_kind?: string | null
+          price_id?: string | null
           status?: string
+          status_token_hash?: string | null
           stripe_session_id?: string
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payments_access_id_fkey"
+            columns: ["access_id"]
+            isOneToOne: false
+            referencedRelation: "user_access"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       plans: {
         Row: {
@@ -648,6 +840,51 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      purchase_confirmations: {
+        Row: {
+          checkout_claimed_at: string | null
+          confirmed_at: string | null
+          consumed_at: string | null
+          created_at: string
+          email: string
+          environment: string
+          expires_at: string
+          id: string
+          payment_method: string
+          price_id: string
+          status: string
+          token_hash: string
+        }
+        Insert: {
+          checkout_claimed_at?: string | null
+          confirmed_at?: string | null
+          consumed_at?: string | null
+          created_at?: string
+          email: string
+          environment: string
+          expires_at: string
+          id?: string
+          payment_method: string
+          price_id: string
+          status?: string
+          token_hash: string
+        }
+        Update: {
+          checkout_claimed_at?: string | null
+          confirmed_at?: string | null
+          consumed_at?: string | null
+          created_at?: string
+          email?: string
+          environment?: string
+          expires_at?: string
+          id?: string
+          payment_method?: string
+          price_id?: string
+          status?: string
+          token_hash?: string
         }
         Relationships: []
       }
@@ -759,6 +996,7 @@ export type Database = {
           active_session_started_at: string | null
           active_session_token: string | null
           active_session_user_agent: string | null
+          cancel_at_period_end: boolean
           created_at: string
           device_limit: number
           email: string
@@ -766,6 +1004,10 @@ export type Database = {
           id: string
           is_trial: boolean
           last_activity_at: string | null
+          manual_expiry_override: boolean
+          payment_customer_id: string | null
+          payment_subscription_id: string | null
+          payment_synced_expires_at: string | null
           phone: string | null
           plan_code: string | null
           status: string
@@ -777,6 +1019,7 @@ export type Database = {
           active_session_started_at?: string | null
           active_session_token?: string | null
           active_session_user_agent?: string | null
+          cancel_at_period_end?: boolean
           created_at?: string
           device_limit?: number
           email: string
@@ -784,6 +1027,10 @@ export type Database = {
           id?: string
           is_trial?: boolean
           last_activity_at?: string | null
+          manual_expiry_override?: boolean
+          payment_customer_id?: string | null
+          payment_subscription_id?: string | null
+          payment_synced_expires_at?: string | null
           phone?: string | null
           plan_code?: string | null
           status?: string
@@ -795,6 +1042,7 @@ export type Database = {
           active_session_started_at?: string | null
           active_session_token?: string | null
           active_session_user_agent?: string | null
+          cancel_at_period_end?: boolean
           created_at?: string
           device_limit?: number
           email?: string
@@ -802,6 +1050,10 @@ export type Database = {
           id?: string
           is_trial?: boolean
           last_activity_at?: string | null
+          manual_expiry_override?: boolean
+          payment_customer_id?: string | null
+          payment_subscription_id?: string | null
+          payment_synced_expires_at?: string | null
           phone?: string | null
           plan_code?: string | null
           status?: string

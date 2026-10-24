@@ -321,7 +321,7 @@ function Dashboard({
           <div className="flex flex-wrap gap-2">
             <Button asChild className="bg-[oklch(0.62_0.19_150)] text-white hover:bg-[oklch(0.56_0.19_150)]">
               <a
-                href="https://wa.me/5511943152441?text=Ol%C3%A1%2C%20sou%20afiliado%20DTFlexPRO%20e%20preciso%20de%20suporte."
+                href="https://api.whatsapp.com/send?phone=5511943152441&text=Ol%C3%A1%2C%20sou%20afiliado%20DTFlexPRO%20e%20preciso%20de%20suporte."
                 target="_blank"
                 rel="noopener noreferrer"
               >

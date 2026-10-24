@@ -60,6 +60,8 @@ interface DashboardPayload {
     active_session_ip: string | null;
     active_session_user_agent: string | null;
     last_activity_at: string | null;
+    manual_expiry_override?: boolean | null;
+    payment_synced_expires_at?: string | null;
     affiliate_sale?: {
       id: string;
       affiliate_id: string;
@@ -76,6 +78,9 @@ interface DashboardPayload {
     amount: number;
     status: string;
     created_at: string;
+    entitlement_status?: string | null;
+    email_delivery_status?: string | null;
+    email_delivery_error?: string | null;
   }>;
   logs: Array<{
     id: string;
@@ -368,6 +373,23 @@ function AdminPage() {
               <StatCard title="Eventos de segurança" value={String(dashboard.logs.length)} />
             </section>
 
+            <DataCard title="Acompanhamento dos pagamentos">
+              <div className="grid gap-3 md:grid-cols-3">
+                <StatCard title="Aguardando liberação" value={String(dashboard.payments.filter((p) => p.status === "paid" && p.entitlement_status !== "granted").length)} />
+                <StatCard title="E-mails pendentes" value={String(dashboard.payments.filter((p) => p.email_delivery_status === "failed").length)} />
+                <StatCard title="Pagamentos com falha" value={String(dashboard.payments.filter((p) => p.status === "failed" || p.status === "expired").length)} />
+              </div>
+              {dashboard.payments.some((p) => p.email_delivery_status === "failed") && (
+                <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  {dashboard.payments.filter((p) => p.email_delivery_status === "failed").slice(0, 10).map((payment) => (
+                    <div key={payment.id} className="rounded-md border border-border p-3">
+                      <span className="font-medium text-foreground">{payment.email}</span> · acesso liberado, e-mail pendente de reenvio
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DataCard>
+
             <DataCard title="Vendas por mês (últimos 12 meses)">
               <div className="flex items-end gap-2 overflow-x-auto pb-2">
                 {dashboard.metrics.monthly.map((m) => {
@@ -431,6 +453,7 @@ function AdminPage() {
         <DataCard title="Definir data de validade manual (entrada do plano)">
           <p className="mb-3 text-xs text-muted-foreground">
             Escolha o cliente, o plano e a data exata em que o acesso deve expirar. O software desktop e o painel passam a respeitar essa data imediatamente.
+            Essa data fica marcada como ajuste manual e não é reduzida por uma renovação automática.
           </p>
           <form
             className="grid gap-3 md:grid-cols-[1.4fr_0.8fr_1fr_auto] md:items-end"
@@ -499,7 +522,7 @@ function AdminPage() {
         <DataCard title="Registrar compra (envia senha provisória ao cliente)">
 
           <p className="mb-3 text-xs text-muted-foreground">
-            Use ao receber a confirmação de compra da Kiwify (ou o comprovante enviado no WhatsApp). O cliente recebe um e-mail de boas-vindas com uma senha provisória (válida por 7 dias e ligada a 1 dispositivo). Depois que ele acessar, libere a senha definitiva no formulário abaixo.
+            Use somente para liberações administrativas excepcionais. As vendas normais são confirmadas automaticamente pelo checkout do site.
           </p>
           <form
             className="grid gap-3 md:grid-cols-[1.4fr_1fr_0.8fr_auto] md:items-end"
@@ -1034,8 +1057,8 @@ function buildClientMessage(item: {
 }
 
 const PLAN_CHECKOUT = {
-  mensal: { price: "R$ 47", cadence: "30 dias", url: "https://pay.kiwify.com.br/Fgy8j0i" },
-  anual: { price: "R$ 147", cadence: "365 dias", url: "https://pay.kiwify.com.br/SppG0CG" },
+  mensal: { price: "R$ 47", cadence: "30 dias", url: "https://www.dtflexpro.com/pagamento?plano=mensal" },
+  anual: { price: "R$ 147", cadence: "365 dias", url: "https://www.dtflexpro.com/pagamento?plano=anual" },
 } as const;
 
 function buildBillingMessage(item: {
