@@ -1,4 +1,6 @@
-# DTFLEXPRO — plataforma completa para produção DTF
+# DTFLEXPRO 2410 — plataforma completa para produção DTF
+
+> **Identificador: 2410** · projeto `dtflexpro` · branch de trabalho `arena/9152127f-teste`
 
 Landing page + ferramentas profissionais de DTF em uma só aplicação: **Halftone inteligente**, **Biblioteca de Artes**, **Gestão DTF**, **Montagem (gang sheet)**, **Estúdio de Mockups**, **Catálogo em Lote** e **Calculadora DTF**.
 
