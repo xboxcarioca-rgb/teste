@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ativação — DTFLEXPRO Studio</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
+        background: #0e1116; color: #e5e7eb; font-family: system-ui, sans-serif;
+      }
+      .card { width: 380px; padding: 28px; background: #151a22; border: 1px solid #253044; border-radius: 16px; }
+      h1 { font-size: 18px; margin: 0 0 6px; }
+      p { font-size: 13px; color: #9aa6b8; margin: 0 0 18px; line-height: 1.5; }
+      label { display: block; font-size: 12px; font-weight: 700; margin: 12px 0 6px; }
+      input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #2b3purple; border: 1px solid #2b3648; background: #0e1116; color: #fff; font-size: 14px; }
+      button { width: 100%; margin-top: 18px; padding: 11px; border: 0; border-radius: 8px; background: #22c55e; color: #04240f; font-weight: 800; font-size: 14px; cursor: pointer; }
+      button:disabled { opacity: .6; cursor: default; }
+      .err { margin-top: 12px; font-size: 12px; color: #fca5a5; min-height: 16px; }
+      .hint { margin-top: 14px; font-size: 11px; color: #6b7788; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Ativação necessária</h1>
+      <p>A primeira ativação exige internet. Depois de ativado, o software registra este computador e funciona offline até a data de expiração do seu plano.</p>
+      <div class="err" id="msg" style="color:#fbbf24"></div>
+      <label for="email">E-mail</label>
+      <input id="email" type="email" placeholder="voce@email.com" />
+      <label for="code">Código de ativação</label>
+      <input id="code" type="text" placeholder="XXXX-XXXX" />
+      <button id="go">Ativar software</button>
+      <div class="err" id="err"></div>
+      <div class="hint">Renovação: dtflexpro.com</div>
+    </div>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const preset = params.get("msg");
+      if (preset) document.getElementById("msg").textContent = preset;
+      const btn = document.getElementById("go");
+      const err = document.getElementById("err");
+      btn.onclick = async () => {
+        err.textContent = "";
+        btn.disabled = true;
+        btn.textContent = "Validando...";
+        const r = await window.dtflex.activate(
+          document.getElementById("email").value,
+          document.getElementById("code").value,
+        );
+        if (!r.ok) {
+          err.textContent = r.error || "Falha na ativação.";
+          btn.disabled = false;
+          btn.textContent = "Ativar software";
+        }
+      };
+    </script>
+
+  </body>
+</html>
