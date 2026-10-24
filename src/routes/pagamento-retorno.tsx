@@ -61,7 +61,7 @@ function PaymentReturnPage() {
           {(!sessionId || !statusToken) && <p className="mt-4 text-sm text-destructive">Não foi possível identificar esta sessão de pagamento.</p>}
           {(status === 'failed' || status === 'expired') && <Button asChild className="mt-7 w-full"><Link to="/pagamento" search={{ plano: 'anual' }}>Tentar novamente</Link></Button>}
           <Button asChild className={(status === 'failed' || status === 'expired') ? 'mt-3 w-full' : 'mt-7 w-full'}>
-            <Link to="/login" search={{ code: '', email: '', expired: '' }}>Entrar na plataforma</Link>
+            <Link to="/login" search={{ email: '' }}>Entrar na plataforma</Link>
           </Button>
           <Button asChild variant="outline" className="mt-3 w-full">
             <Link to="/">Voltar para a página inicial</Link>

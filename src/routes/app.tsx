@@ -62,9 +62,8 @@ export const Route = createFileRoute("/app")({
   beforeLoad: async () => {
     const session = await getAccessSession();
     if (!session?.authenticated) {
-      const expired = (session as any)?.expired ? "1" : "";
       const email = session?.email ?? "";
-      throw redirect({ to: "/login", search: { code: "", email, expired } });
+      throw redirect({ to: "/login", search: { email } });
     }
   },
 

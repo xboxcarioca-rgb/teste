@@ -33,6 +33,7 @@ import {
 } from "@/lib/affiliate.functions";
 import { brandWordmarkUrl } from "@/lib/brand";
 import { HalftoneOrdersAdmin } from "@/components/admin/HalftoneOrdersAdmin";
+import { PedidosDeAcesso } from "@/components/admin/PedidosDeAcesso";
 import { ChevronDown, ChevronRight, Users, MessageCircle, AlertTriangle } from "lucide-react";
 
 interface MonthlyMetric {
@@ -226,7 +227,9 @@ function AdminPage() {
                 setLoading(true);
                 const result = await verifyPassword({ data: { password } });
                 if (!result.ok) {
-                  toast.error("Credenciais inválidas");
+                  const detalhe =
+                    "error" in result && result.error ? String(result.error) : "Credenciais inválidas";
+                  toast.error(detalhe);
                   return;
                 }
                 setAuthenticated(true);
@@ -366,6 +369,8 @@ function AdminPage() {
 
         {tab === "geral" && (
           <>
+            <PedidosDeAcesso />
+
             <section className="grid gap-4 md:grid-cols-4">
               <StatCard title="Clientes únicos" value={String(dashboard.metrics.uniqueClients)} />
               <StatCard title="Códigos ativos" value={String(dashboard.metrics.activeCodes)} />
