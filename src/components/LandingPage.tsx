@@ -1,6 +1,7 @@
 import { Footer } from "@/components/landing/Footer";
 import { Header } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
+import { BaseTool } from "@/components/landing/BaseTool";
 import { FAQ } from "@/components/landing/FAQ";
 import { Features } from "@/components/landing/Features";
 import { HowItWorks } from "@/components/landing/HowItWorks";
@@ -35,13 +36,15 @@ export function LandingPage({
       />
       <div className="relative z-10">
         <Header affiliateMode={affiliateMode} />
-        <Hero />
-        <MarketingPitch />
+        {/* A landing principal é a ferramenta base (tool-first). A landing
+            de afiliados continua focada em venda, com o Hero original. */}
+        {affiliateMode ? <Hero /> : <BaseTool />}
+        {affiliateMode ? <MarketingPitch /> : <HowItWorks />}
         <PlatformSuite />
         <Features />
-        <SocialProof />
-        <ShirtStudio />
-        <HowItWorks />
+        {affiliateMode ? <SocialProof /> : <ShirtStudio />}
+        {affiliateMode ? <ShirtStudio /> : <SocialProof />}
+        {affiliateMode ? <HowItWorks /> : <MarketingPitch />}
         <Pricing affiliateMode={affiliateMode} />
         <FAQ />
         <Footer />

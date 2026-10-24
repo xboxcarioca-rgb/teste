@@ -1,10 +1,11 @@
 # DTFLEXPRO
 
-Plataforma web (+ app Windows via Electron) para **halftone/retícula DTF profissional**:
-landing page de vendas, ferramenta de halftone com exportação A2/A3/A4 em **300 DPI**,
-biblioteca de artes conectada ao Google Drive, montagem de folha (gang sheet), mockups de
-camisetas, catálogo em lote, Gestão DTF (negócio/produção), assinaturas (cartão e PIX) e
-acesso por e-mail + código, com limite de dispositivos.
+Plataforma web (+ app Windows via Electron) para **halftone/retícula DTF profissional**.
+A **página inicial é a Ferramenta Base**: o Halftone Engine roda embutido na própria
+landing page (`src/components/landing/BaseTool.tsx`) — enviar a arte, ajustar a retícula
+e exportar PNG A2/A3/A4 em **300 DPI** sem sair da home. A plataforma completa
+(biblioteca de artes no Google Drive, montagem de folha/gang sheet, mockups, catálogo
+em lote e Gestão DTF) continua em `/app`, com acesso por e-mail + código e assinatura.
 
 > Este repositório recebeu o projeto **inteiro** a partir de `dtflex.zip` (Google Drive,
 > 24/out/2026 — 257 arquivos, ~57 MB descompactado). A análise completa do que veio no zip,
@@ -19,7 +20,7 @@ acesso por e-mail + código, com limite de dispositivos.
 | UI | Tailwind CSS 4 + shadcn/ui (Radix) + lucide-react + fabric.js (canvas de mockups) |
 | Banco / Auth | Supabase (Postgres + RLS) — 24 tabelas; migrations em `supabase/migrations` (14) e `drizzle/migrations` (8) |
 | Pagamentos | Stripe via gateway Lovable (planos R$ 47/mês e R$ 147/ano; PIX = pagamento único que estende o acesso) + webhook InfinitePay legado |
-| Ferramenta DTF | Bundle estático próprio em `public/dtflex-tool/` (iframe) — **não alterar** (ver `mem/index.md`) |
+| Ferramenta DTF | Bundle estático próprio em `public/dtflex-tool/` (iframe) — **não alterar** (ver `mem/index.md`); embutido na home por `landing/BaseTool.tsx` e em tela cheia em `/app` |
 | Desktop | Electron (`electron/main.cjs`) servindo a cópia estática em `app/` 100% offline + instalador NSIS (`setup.nsi`) |
 | Deploy web | Cloudflare Workers (`wrangler.jsonc`, Nitro) |
 

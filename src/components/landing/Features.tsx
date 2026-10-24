@@ -15,7 +15,7 @@ const iconMap = {
 
 export function Features() {
   return (
-    <section className="border-b border-border/60">
+    <section id="recursos" className="scroll-mt-24 border-b border-border/60">
       <div className="mx-auto max-w-7xl px-6 py-16">
         <div className="mb-10 max-w-3xl space-y-3">
           <p className="text-sm uppercase tracking-[0.24em] text-brand">O que a ferramenta faz</p>

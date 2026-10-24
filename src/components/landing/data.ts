@@ -35,9 +35,9 @@ export const featureItems: FeatureItem[] = [
   },
   {
     icon: "printer",
-    title: "Export A4 e A3 em 300 DPI real",
+    title: "Export A4, A3 e A2 em 300 DPI real",
     description:
-      "Salve em PNG A4 (2480x3508) ou A3 (3508x4961) com metadados pHYs cravados em 300 DPI, prontos para DTF.",
+      "Salve em PNG A4 (2480x3508), A3 (3508x4961) ou A2 (4961x7016) com metadados pHYs cravados em 300 DPI, prontos para DTF.",
   },
 ];
 
@@ -68,9 +68,9 @@ export const testimonialItems: TestimonialItem[] = [
 export const steps: StepItem[] = [
   {
     icon: "upload",
-    title: "Carregue ou escolha sua arte",
+    title: "Envie sua arte aqui mesmo",
     description:
-      "Envie PNG, JPEG, PDF ou PSD, importe por link ou escolha uma imagem organizada na sua Biblioteca de Artes.",
+      "Arraste ou selecione PNG, JPEG, PDF ou PSD na ferramenta base da página inicial — ou escolha uma imagem da sua Biblioteca de Artes na plataforma completa.",
   },
   {
     icon: "adjustments",
@@ -82,7 +82,7 @@ export const steps: StepItem[] = [
     icon: "download",
     title: "Visualize e exporte em 300 DPI",
     description:
-      "Confira a retícula em zoom de impressão e baixe o PNG final em A4 ou A3 com tamanho físico e metadados reais de 300 DPI.",
+      "Confira a retícula em zoom de impressão e baixe o PNG final em A4, A3 ou A2 com tamanho físico e metadados reais de 300 DPI.",
   },
 ];
 

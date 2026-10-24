@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, Users, MessageCircle, Shirt, Gift } from "lucide-react";
+import { ArrowUpRight, Users, MessageCircle, Shirt, Gift, Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { TrialSignupDialog } from "@/components/landing/TrialSignupDialog";
@@ -21,17 +21,31 @@ export function Header({ affiliateMode = false }: { affiliateMode?: boolean } = 
         </Link>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <Button
-            size="icon"
-            variant="secondary"
-            className="size-11 sm:h-9 sm:w-auto sm:px-3"
-            onClick={() =>
-              document.getElementById("estudio")?.scrollIntoView({ behavior: "smooth", block: "start" })
-            }
-          >
-            <Shirt className="h-4 w-4" />
-            <span className="hidden sm:inline">Crie seu mockup</span>
-          </Button>
+          {affiliateMode ? (
+            <Button
+              size="icon"
+              variant="secondary"
+              className="size-11 sm:h-9 sm:w-auto sm:px-3"
+              onClick={() =>
+                document.getElementById("estudio")?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            >
+              <Shirt className="h-4 w-4" />
+              <span className="hidden sm:inline">Crie seu mockup</span>
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              variant="secondary"
+              className="size-11 sm:h-9 sm:w-auto sm:px-3"
+              onClick={() =>
+                document.getElementById("ferramenta")?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            >
+              <Wand2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Ferramenta base</span>
+            </Button>
+          )}
 
           <Button
             asChild
