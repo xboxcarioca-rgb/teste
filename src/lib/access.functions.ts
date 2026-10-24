@@ -347,7 +347,7 @@ export const getAdminSession = createServerFn({ method: "GET" }).handler(async (
 });
 
 export const verifyAdminPassword = createServerFn({ method: "POST" })
-  .inputValidator(adminPasswordSchema)
+  .validator(adminPasswordSchema)
   .handler(async ({ data }) => {
     const db = getDb();
     const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
@@ -382,7 +382,7 @@ export const logoutAdminSession = createServerFn({ method: "POST" }).handler(asy
 });
 
 export const validateAccessCode = createServerFn({ method: "POST" })
-  .inputValidator(accessCodeSchema)
+  .validator(accessCodeSchema)
   .handler(async ({ data }) => {
     const db = getDb();
     const email = normalizeEmail(data.email);
@@ -663,7 +663,7 @@ const setExpirySchema = z.object({
 
 /** Admin define manualmente a data de validade do plano do cliente. */
 export const setAccessExpiry = createServerFn({ method: "POST" })
-  .inputValidator(setExpirySchema)
+  .validator(setExpirySchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -691,7 +691,7 @@ export const setAccessExpiry = createServerFn({ method: "POST" })
 
 export const revokeAccess = createServerFn({ method: "POST" })
 
-  .inputValidator(revokeSchema)
+  .validator(revokeSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -714,7 +714,7 @@ export const revokeAccess = createServerFn({ method: "POST" })
   });
 
 export const deleteAccess = createServerFn({ method: "POST" })
-  .inputValidator(deleteSchema)
+  .validator(deleteSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -748,7 +748,7 @@ export const deleteAccess = createServerFn({ method: "POST" })
 
 
 export const updateDeviceLimit = createServerFn({ method: "POST" })
-  .inputValidator(deviceLimitSchema)
+  .validator(deviceLimitSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -768,7 +768,7 @@ export const updateDeviceLimit = createServerFn({ method: "POST" })
   });
 
 export const resetActiveSession = createServerFn({ method: "POST" })
-  .inputValidator(revokeSchema)
+  .validator(revokeSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -790,7 +790,7 @@ export const resetActiveSession = createServerFn({ method: "POST" })
   });
 
 export const regenerateAccessCode = createServerFn({ method: "POST" })
-  .inputValidator(revokeSchema)
+  .validator(revokeSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -846,7 +846,7 @@ export const regenerateAccessCode = createServerFn({ method: "POST" })
 
 
 export const generateManualAccessCode = createServerFn({ method: "POST" })
-  .inputValidator(manualAccessSchema)
+  .validator(manualAccessSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -930,7 +930,7 @@ async function sendProvisionalEmail({
 }
 
 export const registerProvisionalAccess = createServerFn({ method: "POST" })
-  .inputValidator(provisionalAccessSchema)
+  .validator(provisionalAccessSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -967,7 +967,7 @@ export const registerProvisionalAccess = createServerFn({ method: "POST" })
   });
 
 export const releaseOwnDeviceSession = createServerFn({ method: "POST" })
-  .inputValidator(accessCodeSchema)
+  .validator(accessCodeSchema)
   .handler(async ({ data }) => {
     const db = getDb();
     const email = normalizeEmail(data.email);
@@ -1010,7 +1010,7 @@ export const pingAccessSession = createServerFn({ method: "POST" }).handler(asyn
 });
 
 export const reactivateOwnAccess = createServerFn({ method: "POST" })
-  .inputValidator(accessCodeSchema)
+  .validator(accessCodeSchema)
   .handler(async ({ data }) => {
     const db = getDb();
     const email = normalizeEmail(data.email);
@@ -1053,7 +1053,7 @@ const deviceWarningSchema = z.object({
 });
 
 export const sendDeviceWarning = createServerFn({ method: "POST" })
-  .inputValidator(deviceWarningSchema)
+  .validator(deviceWarningSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
@@ -1176,7 +1176,7 @@ async function sendTrialWelcomeEmail({ email, accessCode, expiresAt }: { email: 
 }
 
 export const registerTrialAccess = createServerFn({ method: "POST" })
-  .inputValidator(trialSignupSchema)
+  .validator(trialSignupSchema)
   .handler(async ({ data }) => {
     const db = getDb();
     const email = normalizeEmail(data.email);
@@ -1260,7 +1260,7 @@ export const registerTrialAccess = createServerFn({ method: "POST" })
   });
 
 export const activateTrialAsPaid = createServerFn({ method: "POST" })
-  .inputValidator(activateTrialSchema)
+  .validator(activateTrialSchema)
   .handler(async ({ data }) => {
     await requireAdminSession();
     const db = getDb();
