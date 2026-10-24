@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DTFLEXPRO — Versão HTML · Todas as ferramentas</title>
+<meta name="description" content="Versão HTML estática do DTFLEXPRO com a última versão do Halftone e todas as ferramentas locais: removedor de fundo, melhorador, mockups, montagem DTF, catálogo em lote, biblioteca, gestão e calculadora.">
+<style>
+:root{
+  --bg:#070b14; --panel:#0d1422; --panel2:#111a2d; --line:#263453; --text:#eef4ff; --muted:#a9b8d4;
+  --brand:#4f83ff; --brand2:#35c5f4; --accent:#ff5a3c; --ok:#34d399; --warn:#fbbf24; --danger:#fb7185;
+  --radius:14px; --shadow:0 18px 50px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box} html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(900px 500px at 85% -5%,rgba(79,131,255,.28),transparent 60%),radial-gradient(700px 500px at 0% 15%,rgba(53,197,244,.16),transparent 55%),var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.5}
+a{color:var(--brand2)} button,input,select,textarea{font:inherit}
+.topo{position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(38,52,83,.8);background:rgba(7,11,20,.88);backdrop-filter:blur(14px)}
+.topo-in{display:flex;align-items:center;gap:14px;max-width:1500px;margin:0 auto;padding:10px 16px;flex-wrap:wrap}
+.marca{font-weight:900;letter-spacing:.06em;font-size:1.25rem}.marca b{color:var(--brand2)} .marca span{color:var(--muted);font-weight:600;font-size:.78rem;display:block;letter-spacing:.14em;text-transform:uppercase}
+.badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel2);padding:4px 10px;border-radius:999px;font-size:.75rem;color:var(--muted)} .badge strong{color:var(--text)}
+.topo-acoes{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1500px;margin:0 auto;min-height:100vh}
+.menu{border-right:1px solid rgba(38,52,83,.7);padding:18px 12px;position:sticky;top:65px;height:calc(100vh - 65px);overflow:auto}
+.menu h2{font-size:.72rem;text-transform:uppercase;letter-spacing:.18em;color:var(--muted);margin:4px 8px 10px}
+.menu button{display:flex;width:100%;gap:10px;align-items:flex-start;text-align:left;border:1px solid transparent;background:transparent;color:var(--text);padding:10px;border-radius:10px;cursor:pointer;margin-bottom:5px}
+.menu button small{display:block;color:var(--muted);font-size:.72rem;line-height:1.35;margin-top:2px}
+.menu button:hover{background:var(--panel2)} .menu button.ativo{background:linear-gradient(90deg,rgba(79,131,255,.24),rgba(53,197,244,.10));border-color:rgba(79,131,255,.55)}
+.icone{font-size:1.1rem;line-height:1.2}
+main{padding:24px;min-width:0}
+.painel{display:none;animation:surgir .22s ease}.painel.ativo{display:block}@keyframes surgir{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.hero h1{font-size:clamp(2rem,4.5vw,3.6rem);line-height:1.05;margin:.25rem 0 1rem;max-width:850px}.gradiente{background:linear-gradient(90deg,#ff7a59,#ff4d2e,#ff7a59);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--muted);max-width:760px;font-size:1.06rem}
+.eyebrow{text-transform:uppercase;letter-spacing:.22em;color:var(--brand2);font-size:.75rem;font-weight:800}
+.grade-ferramentas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:24px}
+.card{background:linear-gradient(180deg,rgba(17,26,45,.92),rgba(13,20,34,.92));border:1px solid rgba(38,52,83,.9);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.card h3{margin:.35rem 0 .45rem}.card p{color:var(--muted);font-size:.92rem;margin:.2rem 0 1rem}
+.card .icone{font-size:1.6rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 14px;border-radius:9px;cursor:pointer;text-decoration:none;font-weight:650;font-size:.9rem;min-height:40px}
+.btn:hover{border-color:var(--brand)} .btn.primario{background:var(--brand);border-color:var(--brand);color:white} .btn.destaque{background:var(--accent);border-color:var(--accent);color:white}
+.btn.verde{background:#0f766e;border-color:#0f766e;color:white}.btn.perigo{background:transparent;border-color:rgba(251,113,133,.6);color:var(--danger)} .btn.pequeno{min-height:34px;padding:6px 10px;font-size:.82rem}.btn:disabled{opacity:.45;cursor:not-allowed}
+.titulo{margin:0 0 6px;font-size:clamp(1.65rem,3vw,2.4rem)} .subtitulo{color:var(--muted);margin:0 0 18px;max-width:850px}
+.colunas{display:grid;grid-template-columns:330px minmax(0,1fr);gap:16px;align-items:start}.colunas-iguais{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.campo{margin-bottom:13px}.campo label{display:flex;justify-content:space-between;gap:10px;font-size:.82rem;font-weight:700;color:#dbe7ff;margin-bottom:6px}.campo label output{color:var(--brand2);font-weight:800}
+.campo input[type=text],.campo input[type=number],.campo input[type=date],.campo input[type=email],.campo select,.campo textarea{width:100%;border:1px solid var(--line);background:#0a1120;color:var(--text);border-radius:8px;padding:9px 10px;min-height:40px}
+.campo input[type=range]{width:100%;accent-color:var(--brand)} .campo input[type=color]{width:100%;height:42px;border:1px solid var(--line);background:#0a1120;border-radius:8px;padding:3px}
+.linha{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.linha>*{flex:0 1 auto}.crescer{flex:1 1 auto}
+.dropzone{display:flex;min-height:170px;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--line);border-radius:12px;background:rgba(17,26,45,.55);padding:22px;text-align:center;cursor:pointer;width:100%;color:var(--text)}
+.dropzone:hover,.dropzone.arrastando{border-color:var(--brand2);background:rgba(79,131,255,.14)} .dropzone small{color:var(--muted)}
+.checker{background-color:#8993a3;background-image:conic-gradient(#aeb8c6 25%,#8993a3 0 50%,#aeb8c6 0 75%,#8993a3 0);background-size:22px 22px}
+canvas.mostra,img.mostra{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}
+.status{border:1px solid rgba(53,197,244,.35);background:rgba(53,197,244,.08);border-radius:10px;padding:10px 12px;color:#cdeffd;font-size:.88rem;margin:12px 0}.status.erro{border-color:rgba(251,113,133,.5);background:rgba(251,113,133,.08);color:#ffd7de}.status.ok{border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.08);color:#d3ffef}
+.aviso{border-left:4px solid var(--warn);background:rgba(251,191,36,.08);padding:11px 13px;border-radius:8px;color:#ffe9b0;font-size:.9rem}
+.ht-moldura{display:flex;flex-direction:column;border:1px solid rgba(79,131,255,.5);border-radius:14px;overflow:hidden;background:#0a0c10;box-shadow:var(--shadow)}
+.ht-barra{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--panel);border-bottom:1px solid var(--line);padding:9px 11px}.ht-corpo{height:clamp(620px,84dvh,950px);position:relative}.ht-moldura:fullscreen .ht-corpo{flex:1;height:auto}.ht-corpo iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#0a0c10}
+.ponto{width:10px;height:10px;border-radius:50%;background:var(--warn)} .ponto.ok{background:var(--ok)}
+.mock-palco{position:relative;width:min(100%,620px);margin:0 auto;aspect-ratio:1024/1456;background:#e8eaed;border-radius:12px;overflow:hidden;border:1px solid var(--line);touch-action:none}
+.mock-cor,.mock-foto{position:absolute;inset:0;width:100%;height:100%}.mock-foto{object-fit:contain;mix-blend-mode:multiply;pointer-events:none}.mock-arte{position:absolute;transform-origin:center;cursor:grab;user-select:none;-webkit-user-drag:none}.mock-arte:active{cursor:grabbing}
+.tabela-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px} table{border-collapse:collapse;width:100%;min-width:650px;background:#0a1120} th,td{padding:9px;border-bottom:1px solid rgba(38,52,83,.65);text-align:left;font-size:.86rem;vertical-align:top} th{color:var(--brand2);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;background:var(--panel2)} td input,td select{background:#0d1422;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px;max-width:150px}
+.miniaturas{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}.miniatura{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}.miniatura img{width:100%;height:160px;object-fit:contain;background:#6b7688}.miniatura .info{padding:10px}.miniatura .nome{font-weight:750;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.miniatura .meta{color:var(--muted);font-size:.74rem;margin:3px 0 8px}.acoes{display:flex;gap:6px;flex-wrap:wrap}
+.etiqueta{display:inline-block;border:1px solid rgba(53,197,244,.45);color:#bdefff;border-radius:999px;padding:1px 7px;font-size:.68rem;margin-right:4px}
+.metricas{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metrica{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}.metrica span{display:block;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.1em}.metrica strong{font-size:1.45rem}
+.abas{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.abas button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:999px;padding:8px 12px;cursor:pointer}.abas button.ativo{background:var(--brand);border-color:var(--brand);color:#fff}
+.form-grade{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.form-grade .campo{margin:0}
+.toast{position:fixed;right:16px;bottom:16px;z-index:100;max-width:min(420px,calc(100vw - 32px));background:#10233d;border:1px solid var(--brand);color:white;border-radius:10px;padding:12px 14px;box-shadow:var(--shadow);opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s}.toast.mostrar{opacity:1;transform:none}.toast.erro{background:#3b1220;border-color:var(--danger)}
+.oculto{display:none!important}.muted{color:var(--muted)} .pequeno{font-size:.82rem}.direita{margin-left:auto}.sem-margem{margin:0}
+.lista-gang{display:grid;gap:9px}.item-gang{display:grid;grid-template-columns:58px 1fr auto;gap:10px;align-items:center;border:1px solid var(--line);background:#0a1120;border-radius:10px;padding:8px}.item-gang img{width:58px;height:58px;object-fit:contain;background:#748097;border-radius:7px}.item-gang input{width:82px;background:#0d1422;color:white;border:1px solid var(--line);border-radius:6px;padding:6px}
+.rodape{color:var(--muted);border-top:1px solid var(--line);padding:22px 0 6px;margin-top:28px;font-size:.86rem}
+@media(max-width:950px){.layout{grid-template-columns:1fr}.menu{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);display:flex;gap:7px;overflow-x:auto;padding:10px}.menu h2{display:none}.menu button{min-width:180px;margin:0}main{padding:16px}.grade-ferramentas,.colunas,.colunas-iguais{grid-template-columns:1fr}.metricas{grid-template-columns:repeat(2,1fr)}.form-grade{grid-template-columns:1fr 1fr}.ht-corpo{height:82dvh}}
+@media(max-width:560px){.metricas,.form-grade{grid-template-columns:1fr}.topo-acoes{margin-left:0}.miniaturas{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))}}
+</style>
+</head>
+<body>
+<header class="topo"><div class="topo-in">
+  <div class="marca">DT<b>FLEX</b>PRO<span>Versão HTML · Todas as ferramentas</span></div>
+  <span class="badge"><strong>Última versão</strong> Halftone build dpi300-universal-v71</span>
+  <span class="badge">100% no navegador · sem servidor</span>
+  <div class="topo-acoes">
+    <a class="btn pequeno" href="DTFLEXPRO-versao-html.zip" download>Baixar esta versão (.zip)</a>
+    <a class="btn pequeno" href="../">Voltar ao site principal</a>
+  </div>
+</div></header>
+
+<div class="layout">
+<nav class="menu" aria-label="Ferramentas">
+  <h2>Ferramentas</h2>
+  <button data-open="inicio" class="ativo"><span class="icone">⌂</span><span>Início<small>Todas as ferramentas</small></span></button>
+  <button data-open="halftone"><span class="icone">◉</span><span>Halftone<small>Última versão · A2/A3/A4 · 300 DPI</small></span></button>
+  <button data-open="removedor"><span class="icone">✂</span><span>Removedor de fundo<small>Cor + borda (flood-fill)</small></span></button>
+  <button data-open="melhorador"><span class="icone">✦</span><span>Melhorador<small>Upscale, nitidez e cor</small></span></button>
+  <button data-open="mockup"><span class="icone">👕</span><span>Mockup<small>9 modelos de camiseta</small></span></button>
+  <button data-open="montagem"><span class="icone">▦</span><span>Montagem DTF<small>Gang sheet · PNG 300 DPI</small></span></button>
+  <button data-open="catalogo"><span class="icone">🗂</span><span>Catálogo em lote<small>Mockups + catálogo HTML/PDF</small></span></button>
+  <button data-open="biblioteca"><span class="icone">🖼</span><span>Biblioteca<small>Artes locais no navegador</small></span></button>
+  <button data-open="gestao"><span class="icone">💼</span><span>Gestão DTF<small>Pedidos, clientes, estoque…</small></span></button>
+  <button data-open="calculadora"><span class="icone">🧮</span><span>Calculadora<small>Custo, venda e aproveitamento</small></span></button>
+</nav>
+
+<main>
+<!-- INÍCIO -->
+<section id="painel-inicio" class="painel ativo hero">
+  <p class="eyebrow">DTFLEXPRO · Versão HTML</p>
+  <h1>Última versão, <span class="gradiente">todas as ferramentas</span>, em HTML.</h1>
+  <p>Esta é a edição estática do DTFLEXPRO: abre em qualquer navegador, não precisa de servidor nem login e guarda Biblioteca e Gestão <strong>neste dispositivo</strong>. O Halftone abaixo é a <strong>última versão web</strong> da ferramenta (a mesma servida em <code>/dtflex-tool</code>), com os arquivos JS/CSS idênticos aos originais.</p>
+  <div class="grade-ferramentas" id="gradeFerramentas"></div>
+  <div class="status" style="margin-top:18px"><strong>Como usar fora do site:</strong> baixe o <a href="DTFLEXPRO-versao-html.zip">DTFLEXPRO-versao-html.zip</a>, extraia e abra <code>index.html</code>. Mantenha as pastas <code>halftone/</code> e <code>camisetas/</code> junto do HTML. Funções que dependem de serviços da hospedagem (Google Drive, checkout e geração de imagem por IA no servidor) ficam somente na plataforma online; nesta edição a Biblioteca é local e a Gestão salva no navegador.</div>
+</section>
+
+<!-- HALFTONE -->
+<section id="painel-halftone" class="painel">
+  <h2 class="titulo">Halftone — última versão</h2>
+  <p class="subtitulo">O Halftone Engine completo rodando nesta página: tecidos preto, branco ou colorido, enquadramento A2/A3/A4 e exportação PNG transparente com 300 DPI reais (pHYs). Envie uma arte aqui fora ou use o upload interno da ferramenta.</p>
+  <input id="htFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,application/pdf,.pdf,.psd" class="oculto">
+  <div id="htMoldura" class="ht-moldura">
+    <div class="ht-barra">
+      <span id="htPonto" class="ponto"></span><strong>DTFLEXPRO Halftone Engine</strong>
+      <span id="htStatus" class="muted pequeno crescer" aria-live="polite">Pronto para abrir.</span>
+      <button class="btn pequeno primario" id="htEnviarBtn" type="button">Enviar arte</button>
+      <button class="btn pequeno" id="htRecarregarBtn" type="button">Recarregar</button>
+      <button class="btn pequeno" id="htTelaCheiaBtn" type="button">Tela cheia</button>
+      <a class="btn pequeno" href="halftone/index.html" target="_blank" rel="noopener">Abrir sozinha ↗</a>
+    </div>
+    <div class="ht-corpo"><iframe id="htFrame" title="DTFLEXPRO Halftone Engine" src="about:blank" data-src="halftone/index.html" allow="clipboard-read; clipboard-write; fullscreen" allowfullscreen></iframe></div>
+  </div>
+  <p class="pequeno muted">Cópia portátil somente para esta edição HTML: o original em <code>public/dtflex-tool/</code> permanece intacto; aqui apenas os dois caminhos de assets viraram relativos (JS/CSS com o mesmo MD5).</p>
+</section>
+
+<!-- REMOVEDOR -->
+<section id="painel-removedor" class="painel">
+  <h2 class="titulo">Removedor de fundo</h2>
+  <p class="subtitulo">Remoção local por cor, conectada às bordas (flood-fill) — ideal para fundos sólidos e artes sobre branco/cor única. Clique na imagem para escolher a cor do fundo.</p>
+  <div class="colunas">
+    <div class="card">
+      <input id="rmFile" type="file" accept="image/*" class="oculto">
+      <button class="dropzone" id="rmDrop" type="button"><span style="font-size:2rem">✂</span><strong>Enviar imagem</strong><small>Clique ou arraste o arquivo</small></button>
+      <div class="campo" style="margin-top:14px"><label>Cor do fundo <output id="rmCorHex">#ffffff</output></label><input id="rmCor" type="color" value="#ffffff"></div>
+      <div class="campo"><label>Tolerância <output id="rmTolOut">55</output></label><input id="rmTol" type="range" min="5" max="220" step="1" value="55"></div>
+      <div class="campo"><label>Suavizar borda <output id="rmFeatherOut">18</output></label><input id="rmFeather" type="range" min="0" max="80" step="1" value="18"></div>
+      <div class="campo"><label>Modo</label><select id="rmModo"><option value="borda">Somente fundo ligado às bordas (recomendado)</option><option value="global">Remover essa cor em toda a imagem</option></select></div>
+      <label class="linha pequeno" style="margin-bottom:12px"><input id="rmLimpar" type="checkbox" checked> Limpar poeira Alpha e pontinhos soltos</label>
+      <div class="linha"><button id="rmProcessar" class="btn primario" type="button">Remover fundo</button><button id="rmBaixar" class="btn" type="button" disabled>Baixar PNG</button></div>
+      <div class="linha" style="margin-top:8px"><button id="rmEnviarHalftone" class="btn destaque" type="button" disabled>Enviar p/ Halftone</button><button id="rmSalvarBiblio" class="btn" type="button" disabled>Salvar na Biblioteca</button></div>
+      <div id="rmStatus" class="status">Envie uma imagem para começar.</div>
+    </div>
+    <div class="card"><h3 class="sem-margem">Pré-visualização</h3><p class="pequeno muted">Clique no fundo da imagem para amostrar a cor.</p><canvas id="rmCanvas" class="mostra checker" width="900" height="620"></canvas></div>
+  </div>
+</section>
+
+<!-- MELHORADOR -->
+<section id="painel-melhorador" class="painel">
+  <h2 class="titulo">Melhorador de imagem</h2>
+  <p class="subtitulo">Upscale via canvas + nitidez (unsharp) + cor, leve e sem servidor — o mesmo método da plataforma.</p>
+  <div class="colunas">
+    <div class="card">
+      <input id="meFile" type="file" accept="image/*" class="oculto">
+      <button class="dropzone" id="meDrop" type="button"><span style="font-size:2rem">✦</span><strong>Enviar imagem</strong><small>Clique ou arraste o arquivo</small></button>
+      <div class="campo" style="margin-top:14px"><label>Escala <output id="meEscalaOut">2x</output></label><input id="meEscala" type="range" min="1" max="4" step="1" value="2"></div>
+      <div class="campo"><label>Nitidez <output id="meNitidezOut">35%</output></label><input id="meNitidez" type="range" min="0" max="100" step="5" value="35"></div>
+      <div class="campo"><label>Saturação <output id="meSatOut">+10%</output></label><input id="meSat" type="range" min="0" max="80" step="5" value="10"></div>
+      <div class="campo"><label>Contraste <output id="meContrasteOut">100%</output></label><input id="meContraste" type="range" min="60" max="160" step="2" value="100"></div>
+      <div class="linha"><button id="meProcessar" class="btn primario" type="button">Aprimorar</button><button id="meBaixar" class="btn" type="button" disabled>Baixar PNG</button></div>
+      <div class="linha" style="margin-top:8px"><button id="meEnviarHalftone" class="btn destaque" type="button" disabled>Enviar p/ Halftone</button><button id="meSalvarBiblio" class="btn" type="button" disabled>Salvar na Biblioteca</button></div>
+      <div id="meStatus" class="status">Envie uma imagem para começar.</div>
+    </div>
+    <div class="colunas-iguais" style="grid-template-columns:1fr 1fr">
+      <div class="card"><h3 class="sem-margem">Original</h3><img id="meOriginal" class="mostra" alt="Imagem original"></div>
+      <div class="card"><h3 class="sem-margem">Resultado</h3><img id="meResultado" class="mostra checker" alt="Imagem aprimorada"></div>
+    </div>
+  </div>
+</section>
+
+<!-- MOCKUP -->
+<section id="painel-mockup" class="painel">
+  <h2 class="titulo">Mockup de camiseta</h2>
+  <p class="subtitulo">Os 9 modelos da plataforma, com cor real do tecido (máscara + multiply). Arraste a arte sobre a camiseta para posicionar.</p>
+  <div class="colunas">
+    <div class="card">
+      <input id="mkFile" type="file" accept="image/*" class="oculto">
+      <div class="campo"><label>Arte</label><div class="linha"><button id="mkEnviar" class="btn primario" type="button">Enviar arte</button><select id="mkBiblio" class="shared-art-select crescer" style="border:1px solid var(--line);background:#0a1120;color:white;border-radius:8px;padding:9px"></select><button id="mkUsarBiblio" class="btn" type="button">Usar</button></div></div>
+      <div class="campo"><label>Modelo</label><select id="mkModelo"></select></div>
+      <div class="campo"><label>Lado</label><select id="mkLado"><option value="frente">Frente</option><option value="costas">Costas</option><option value="lado-esq">Lateral esquerda</option><option value="lado-dir">Lateral direita</option></select></div>
+      <div class="campo"><label>Cor da camiseta</label><input id="mkCor" type="color" value="#1c1f26"></div>
+      <div class="campo"><label>Fundo da foto</label><input id="mkFundo" type="color" value="#e8eaed"></div>
+      <div class="campo"><label>Tamanho da arte <output id="mkEscalaOut">42%</output></label><input id="mkEscala" type="range" min="8" max="85" value="42"></div>
+      <div class="campo"><label>Posição X <output id="mkXOut">50%</output></label><input id="mkX" type="range" min="5" max="95" value="50"></div>
+      <div class="campo"><label>Posição Y <output id="mkYOut">42%</output></label><input id="mkY" type="range" min="5" max="95" value="42"></div>
+      <div class="campo"><label>Rotação <output id="mkRotOut">0°</output></label><input id="mkRot" type="range" min="-45" max="45" value="0"></div>
+      <div class="campo"><label>Opacidade <output id="mkOpOut">100%</output></label><input id="mkOp" type="range" min="10" max="100" value="100"></div>
+      <div class="linha"><button id="mkCentralizar" class="btn" type="button">Centralizar</button><button id="mkBaixar" class="btn primario" type="button">Baixar mockup PNG</button></div>
+      <div id="mkStatus" class="status">Envie uma arte para montar o mockup.</div>
+    </div>
+    <div class="card">
+      <div id="mkPalco" class="mock-palco">
+        <div id="mkCorCamada" class="mock-cor"></div>
+        <img id="mkFoto" class="mock-foto" alt="Camiseta">
+        <img id="mkArte" class="mock-arte oculto" alt="Arte aplicada" draggable="false">
+      </div>
+      <p class="pequeno muted" style="text-align:center">Arraste a arte no palco ou use os controles ao lado.</p>
+    </div>
+  </div>
+</section>
+
+<!-- MONTAGEM -->
+<section id="painel-montagem" class="painel">
+  <h2 class="titulo">Montagem DTF (gang sheet)</h2>
+  <p class="subtitulo">Monte várias artes na folha, organize automaticamente, arraste para ajustar e exporte PNG transparente com <strong>300 DPI reais no metadado pHYs</strong>.</p>
+  <div class="colunas">
+    <div class="card">
+      <input id="gsFile" type="file" accept="image/*" multiple class="oculto">
+      <div class="linha"><button id="gsEnviar" class="btn primario" type="button">Adicionar artes</button><select id="gsBiblio" class="shared-art-select crescer" style="border:1px solid var(--line);background:#0a1120;color:white;border-radius:8px;padding:9px"></select><button id="gsUsarBiblio" class="btn" type="button">Adicionar</button></div>
+      <div class="form-grade" style="grid-template-columns:1fr 1fr;margin-top:13px">
+        <div class="campo"><label>Folha</label><select id="gsPreset"><option value="58x100">58 × 100 cm</option><option value="56x100">56 × 100 cm</option><option value="60x100">60 × 100 cm</option><option value="28x100">28 × 100 cm</option><option value="custom">Personalizada</option></select></div>
+        <div class="campo"><label>DPI de saída</label><select id="gsDpi"><option>300</option><option>150</option><option>600</option></select></div>
+        <div class="campo"><label>Largura (cm)</label><input id="gsLarg" type="number" value="58" min="5" step="0.5"></div>
+        <div class="campo"><label>Altura (cm)</label><input id="gsAlt" type="number" value="100" min="5" step="0.5"></div>
+        <div class="campo"><label>Espaço entre artes (cm)</label><input id="gsGap" type="number" value="0.5" min="0" step="0.1"></div>
+        <div class="campo"><label>Aproveitamento</label><div class="status sem-margem" id="gsAproveitamento">0%</div></div>
+      </div>
+      <div class="linha" style="margin-top:12px"><button id="gsAuto" class="btn" type="button">Organizar automaticamente</button><button id="gsLimpar" class="btn perigo" type="button">Limpar folha</button></div>
+      <div class="linha" style="margin-top:8px"><button id="gsExportPng" class="btn primario" type="button">Exportar PNG 300 DPI</button><button id="gsImprimir" class="btn" type="button">Imprimir / salvar PDF</button></div>
+      <div id="gsStatus" class="status">Adicione artes para montar a folha.</div>
+      <h3>Artes na folha</h3><div id="gsLista" class="lista-gang"></div>
+    </div>
+    <div class="card"><h3 class="sem-margem">Folha</h3><p id="gsInfo" class="pequeno muted"></p><canvas id="gsCanvas" class="mostra checker" width="900" height="1200"></canvas><p class="pequeno muted">Arraste uma arte na prévia para reposicionar.</p></div>
+  </div>
+</section>
+
+<!-- CATÁLOGO -->
+<section id="painel-catalogo" class="painel">
+  <h2 class="titulo">Catálogo em lote</h2>
+  <p class="subtitulo">Suba várias estampas, gere os mockups em lote com código, nome e preço, e baixe um <strong>catálogo em HTML</strong> pronto para compartilhar — ou imprima/salve em PDF.</p>
+  <div class="colunas">
+    <div class="card">
+      <input id="ctFile" type="file" accept="image/*" multiple class="oculto">
+      <div class="linha"><button id="ctEnviar" class="btn primario" type="button">Enviar estampas</button><button id="ctUsarBiblio" class="btn" type="button">Usar toda a Biblioteca</button></div>
+      <div class="form-grade" style="grid-template-columns:1fr 1fr;margin-top:13px">
+        <div class="campo"><label>Modelo</label><select id="ctModelo"></select></div>
+        <div class="campo"><label>Posição</label><select id="ctPosicao"><option>Centro</option><option>Peito</option><option>Costas</option></select></div>
+        <div class="campo"><label>Cor da camiseta</label><input id="ctCor" type="color" value="#20242e"></div>
+        <div class="campo"><label>Tamanho da estampa <output id="ctTamOut">42%</output></label><input id="ctTam" type="range" min="22" max="52" value="42"></div>
+        <div class="campo"><label>Marca / loja</label><input id="ctMarca" type="text" value="DTFLEXPRO"></div>
+        <div class="campo"><label>Marca d'água</label><input id="ctAgua" type="text" placeholder="Opcional"></div>
+      </div>
+      <div class="linha" style="margin-top:12px"><button id="ctGerar" class="btn primario" type="button">Gerar catálogo</button><button id="ctBaixarHtml" class="btn" type="button" disabled>Baixar catálogo HTML</button><button id="ctImprimir" class="btn" type="button" disabled>Imprimir / PDF</button></div>
+      <div id="ctStatus" class="status">Envie as estampas para montar a lista de produtos.</div>
+      <h3>Produtos</h3><div id="ctLista" class="lista-gang"></div>
+    </div>
+    <div class="card"><h3 class="sem-margem">Catálogo gerado</h3><p class="pequeno muted">As páginas aparecem aqui depois de gerar.</p><div id="ctPreview" class="miniaturas"></div></div>
+  </div>
+</section>
+
+<!-- BIBLIOTECA -->
+<section id="painel-biblioteca" class="painel">
+  <h2 class="titulo">Biblioteca de artes</h2>
+  <p class="subtitulo">Sua biblioteca <strong>local</strong>: as artes ficam salvas no navegador (IndexedDB) neste aparelho e podem ser enviadas direto para Halftone, Mockup e Montagem. Diferente da plataforma online, aqui não há Google Drive.</p>
+  <div class="card">
+    <input id="bibFile" type="file" accept="image/*,application/pdf,.psd" multiple class="oculto">
+    <input id="bibFolder" type="file" accept="image/*,application/pdf,.psd" multiple webkitdirectory class="oculto">
+    <div class="linha"><button id="bibEnviar" class="btn primario" type="button">Adicionar arquivos</button><button id="bibPasta" class="btn" type="button">Adicionar pasta inteira</button><input id="bibBusca" class="crescer" type="text" placeholder="Buscar por nome ou pasta…" style="border:1px solid var(--line);background:#0a1120;color:white;border-radius:8px;padding:10px;min-width:200px"><select id="bibFiltro" style="border:1px solid var(--line);background:#0a1120;color:white;border-radius:8px;padding:10px"><option value="">Todos os formatos</option><option>A2</option><option>A3</option><option>A4</option><option value="halftone">Halftone</option><option value="outros">Outros</option></select><button id="bibLimpar" class="btn perigo" type="button">Esvaziar biblioteca</button></div>
+    <div id="bibStatus" class="status">Carregando biblioteca…</div>
+    <div id="bibGrade" class="miniaturas"></div>
+  </div>
+</section>
+
+<!-- GESTÃO -->
+<section id="painel-gestao" class="painel">
+  <h2 class="titulo">Gestão DTF</h2>
+  <p class="subtitulo">Produção, pedidos, clientes, estoque, financeiro, impostos, relatórios, usuários e configurações — salvos localmente neste navegador, começando zerados como na plataforma.</p>
+  <div id="gestaoApp"></div>
+</section>
+
+<!-- CALCULADORA -->
+<section id="painel-calculadora" class="painel">
+  <h2 class="titulo">Calculadora DTF</h2>
+  <p class="subtitulo">Custo e preço de venda por área (a mesma fórmula da plataforma) + aproveitamento de folha.</p>
+  <div class="colunas-iguais">
+    <div class="card"><h3 class="sem-margem">Custo da estampa</h3>
+      <div class="form-grade" style="grid-template-columns:1fr 1fr;margin-top:12px">
+        <div class="campo"><label>Largura (cm)</label><input id="calcL" type="number" value="10" step="0.1"></div>
+        <div class="campo"><label>Altura (cm)</label><input id="calcA" type="number" value="10" step="0.1"></div>
+        <div class="campo"><label>Preço por cm² (R$)</label><input id="calcP" type="number" value="0.10" step="0.01"></div>
+        <div class="campo"><label>Quantidade</label><input id="calcQ" type="number" value="1" step="1"></div>
+        <div class="campo"><label>Margem de lucro (%)</label><input id="calcM" type="number" value="30" step="1"></div>
+      </div>
+      <div id="calcResultado" class="status ok"></div>
+    </div>
+    <div class="card"><h3 class="sem-margem">Quantas cabem na folha?</h3>
+      <div class="form-grade" style="grid-template-columns:1fr 1fr;margin-top:12px">
+        <div class="campo"><label>Folha — largura (cm)</label><input id="fitFL" type="number" value="58" step="0.5"></div>
+        <div class="campo"><label>Folha — altura (cm)</label><input id="fitFA" type="number" value="100" step="0.5"></div>
+        <div class="campo"><label>Arte — largura (cm)</label><input id="fitAL" type="number" value="28" step="0.5"></div>
+        <div class="campo"><label>Arte — altura (cm)</label><input id="fitAA" type="number" value="35" step="0.5"></div>
+        <div class="campo"><label>Espaço entre artes (cm)</label><input id="fitGap" type="number" value="0.5" step="0.1"></div>
+        <div class="campo"><label>Permitir girar 90°</label><select id="fitRot"><option value="1">Sim, usar o melhor encaixe</option><option value="0">Não</option></select></div>
+      </div>
+      <div id="fitResultado" class="status"></div>
+    </div>
+  </div>
+</section>
+
+<p class="rodape">DTFLEXPRO · Versão HTML estática — Última versão do Halftone (build dpi300-universal-v71) + ferramentas locais. Biblioteca e Gestão salvam somente neste navegador. O Halftone original em <code>public/dtflex-tool/</code> e o patch de 300 DPI não foram alterados.</p>
+</main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ============ utilidades ============ */
+const $=(s,r=document)=>r.querySelector(s); const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const BRL=v=>(Number(v)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtBytes=b=>b<1024?b+" B":b<1048576?Math.round(b/1024)+" KB":(b/1048576).toFixed(1)+" MB";
+let toastTimer=0; function toast(msg,erro=false){const t=$("#toast");t.textContent=msg;t.className="toast mostrar"+(erro?" erro":"");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("mostrar"),3600);}
+function setStatus(id,msg,tipo=""){const e=document.getElementById(id);if(!e)return;e.innerHTML=msg;e.className="status "+tipo;}
+function download(blob,nome){const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download=nome;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
+function canvasBlob(c,type="image/png",q){return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("Não foi possível gerar a imagem.")),type,q));}
+function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});}
+async function imageFromBlob(blob){if("createImageBitmap" in window){try{return await createImageBitmap(blob);}catch{}}const u=URL.createObjectURL(blob);return loadImage(u);}
+function bindRange(id,outId,fmt){const el=document.getElementById(id),out=document.getElementById(outId);const f=()=>{if(out)out.textContent=fmt?fmt(el.value):el.value;};el.addEventListener("input",f);f();return el;}
+function dropZone(elId,inputId,onFile){const el=document.getElementById(elId),inp=document.getElementById(inputId);el.addEventListener("click",()=>inp.click());el.addEventListener("dragover",e=>{e.preventDefault();el.classList.add("arrastando");});el.addEventListener("dragleave",()=>el.classList.remove("arrastando"));el.addEventListener("drop",e=>{e.preventDefault();el.classList.remove("arrastando");if(e.dataTransfer.files[0])onFile(e.dataTransfer.files[0]);});inp.addEventListener("change",()=>{if(inp.files[0])onFile(inp.files[0]);inp.value="";});}
+/* pHYs 300 DPI — mesmo método da Montagem DTF da plataforma */
+const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(b){let c=0xffffffff;for(let i=0;i<b.length;i++)c=CRC_TABLE[(c^b[i])&255]^(c>>>8);return(c^0xffffffff)>>>0;}
+function buildPhys(dpi){const ppm=Math.round(dpi/0.0254);const data=new Uint8Array(9);const dv=new DataView(data.buffer);dv.setUint32(0,ppm,false);dv.setUint32(4,ppm,false);data[8]=1;const type=new Uint8Array([112,72,89,115]);const body=new Uint8Array(13);body.set(type,0);body.set(data,4);const out=new Uint8Array(21);const od=new DataView(out.buffer);od.setUint32(0,9,false);out.set(type,4);out.set(data,8);od.setUint32(17,crc32(body),false);return out;}
+function withDpi(buf,dpi){const dv=new DataView(buf.buffer,buf.byteOffset,buf.byteLength);const parts=[buf.subarray(0,8)];const phys=buildPhys(dpi);let inserted=false,off=8;while(off+12<=buf.length){const len=dv.getUint32(off,false);const end=off+8+len+4;if(end>buf.length)break;const t=String.fromCharCode(buf[off+4],buf[off+5],buf[off+6],buf[off+7]);if(t!=="pHYs")parts.push(buf.subarray(off,end));if(t==="IHDR"&&!inserted){parts.push(phys);inserted=true;}off=end;if(t==="IEND")break;}if(!inserted)parts.splice(1,0,phys);let total=0;parts.forEach(p=>total+=p.length);const out=new Uint8Array(total);let cur=0;parts.forEach(p=>{out.set(p,cur);cur+=p.length;});return out;}
+async function pngComDpi(canvas,dpi){const blob=await canvasBlob(canvas);const buf=new Uint8Array(await blob.arrayBuffer());return new Blob([withDpi(buf,dpi)],{type:"image/png"});}
+
+/* ============ navegação ============ */
+const FERRAMENTAS=[
+ ["halftone","◉","Halftone — última versão","Retícula DTF A2/A3/A4 em 300 DPI, tecidos preto, branco ou colorido."],
+ ["removedor","✂","Removedor de fundo","Recorte local por cor e borda para fundos sólidos."],
+ ["melhorador","✦","Melhorador","Upscale, nitidez e cor antes do halftone."],
+ ["mockup","👕","Mockup","9 modelos de camiseta com cor real do tecido."],
+ ["montagem","▦","Montagem DTF","Gang sheet com exportação PNG 300 DPI (pHYs)."],
+ ["catalogo","🗂","Catálogo em lote","Mockups em série + catálogo HTML ou PDF."],
+ ["biblioteca","🖼","Biblioteca","Suas artes salvas neste navegador (IndexedDB)."],
+ ["gestao","💼","Gestão DTF","Pedidos, clientes, estoque e financeiro locais."],
+ ["calculadora","🧮","Calculadora","Custo, preço de venda e aproveitamento de folha."],
+];
+$("#gradeFerramentas").innerHTML=FERRAMENTAS.map(([id,ic,t,d])=>`<article class="card"><span class="icone">${ic}</span><h3>${t}</h3><p>${d}</p><button class="btn primario" type="button" data-open="${id}">Abrir ferramenta</button></article>`).join("");
+function showTool(id){$$(".painel").forEach(p=>p.classList.toggle("ativo",p.id==="painel-"+id));$$("[data-open]").forEach(b=>{if(b.closest(".menu"))b.classList.toggle("ativo",b.dataset.open===id);});try{history.replaceState(null,"","#"+id);}catch{} if(id==="halftone")ensureHalftone(); window.scrollTo({top:0,behavior:"smooth"});}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-open]");if(b)showTool(b.dataset.open);});
+
+/* ============ Halftone (iframe, última versão) ============ */
+let htStarted=false,htPending=null;
+function ensureHalftone(){if(htStarted)return;htStarted=true;const f=$("#htFrame");f.src=f.dataset.src;$("#htStatus").textContent="Carregando o Halftone Engine…";}
+$("#htFrame").addEventListener("load",()=>{if(!htStarted)return;$("#htPonto").classList.add("ok");if(!htPending)$("#htStatus").textContent="Halftone aberto. Envie sua arte para começar.";});
+function enviarParaHalftone(url,nome){showTool("halftone");ensureHalftone();htPending={url,nome};$("#htStatus").textContent="Preparando arte: "+nome;tentarEnviarHalftone();}
+function tentarEnviarHalftone(){if(!htPending)return;const f=$("#htFrame");let temInput=false;try{temInput=!!f.contentDocument?.querySelector('input[type="file"]');}catch{} if(temInput&&f.contentWindow){const alvo=(location.origin&&location.origin!=="null")?location.origin:"*";f.contentWindow.postMessage({type:"DTFLEXPRO_IMPORT_ART",url:htPending.url,name:htPending.nome},alvo);$("#htStatus").textContent="Arte enviada para o Halftone: "+htPending.nome;htPending=null;}}
+setInterval(tentarEnviarHalftone,400);
+$("#htEnviarBtn").addEventListener("click",()=>$("#htFile").click());
+$("#htFile").addEventListener("change",e=>{const file=e.target.files[0];e.target.value="";if(file)enviarParaHalftone(URL.createObjectURL(file),file.name);});
+$("#htRecarregarBtn").addEventListener("click",()=>{const f=$("#htFrame");htStarted=true;$("#htPonto").classList.remove("ok");f.src=f.dataset.src;$("#htStatus").textContent="Recarregando o Halftone Engine…";});
+$("#htTelaCheiaBtn").addEventListener("click",async()=>{try{document.fullscreenElement?await document.exitFullscreen():await $("#htMoldura").requestFullscreen();}catch{toast("Tela cheia não disponível neste navegador.",true);}});
+
+/* ============ Biblioteca local (IndexedDB) ============ */
+let biblioteca=[];
+function idbOpen(){return new Promise(res=>{if(!("indexedDB" in window))return res(null);const r=indexedDB.open("dtflexpro-html-v1",1);r.onupgradeneeded=()=>r.result.createObjectStore("arts",{keyPath:"id"});r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);});}
+async function idbAll(){const db=await idbOpen();if(!db)return[];return new Promise(res=>{const tx=db.transaction("arts","readonly");const rq=tx.objectStore("arts").getAll();rq.onsuccess=()=>res(rq.result||[]);rq.onerror=()=>res([]);});}
+async function idbPut(rec){const db=await idbOpen();if(!db)return;return new Promise(res=>{const tx=db.transaction("arts","readwrite");tx.objectStore("arts").put(rec);tx.oncomplete=()=>res();tx.onerror=()=>res();});}
+async function idbDel(id){const db=await idbOpen();if(!db)return;return new Promise(res=>{const tx=db.transaction("arts","readwrite");tx.objectStore("arts").delete(id);tx.oncomplete=()=>res();tx.onerror=()=>res();});}
+async function idbClear(){const db=await idbOpen();if(!db)return;return new Promise(res=>{const tx=db.transaction("arts","readwrite");tx.objectStore("arts").clear();tx.oncomplete=()=>res();tx.onerror=()=>res();});}
+const PAPEL=[{f:"A2",w:4961,h:7016},{f:"A3",w:3508,h:4961},{f:"A4",w:2480,h:3508}];
+const norm=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+function detectarPapel(nome,w,h,pasta){if(w&&h){const a=Math.min(w,h),b=Math.max(w,h);const m=PAPEL.find(p=>Math.abs(a-p.w)<=2&&Math.abs(b-p.h)<=2);if(m)return m.f;}for(const v of[nome,pasta]){const m=norm(v).match(/(?:^|[^a-z0-9])a[\s_-]?([234])(?=$|[^a-z0-9])/);if(m)return"A"+m[1];}return"";}
+const ehHalftone=(nome,pasta)=>/half[\s_-]*tone|reticulad[ao]|reticula/.test(norm(nome+" "+pasta));
+async function registrarArte(blob,nome,pasta="",salvar=true){let w=0,h=0;if(blob.type&&blob.type.startsWith("image/")){try{const img=await imageFromBlob(blob);w=img.width||img.naturalWidth||0;h=img.height||img.naturalHeight||0;}catch{}}const rec={id:uid(),nome:String(nome||"arte.png"),pasta:String(pasta||""),tipo:blob.type||"",tamanho:blob.size||0,largura:w,altura:h,criado:Date.now(),blob};rec.url=URL.createObjectURL(blob);biblioteca.unshift(rec);if(salvar)await idbPut(rec);renderBiblioteca();return rec;}
+function artePorId(id){return biblioteca.find(a=>a.id===id);}
+function renderBiblioteca(){ /* selects compartilhados */
+  $$(".shared-art-select").forEach(sel=>{const atual=sel.value;sel.innerHTML='<option value="">Arte da Biblioteca…</option>'+biblioteca.filter(a=>a.tipo.startsWith("image/")).map(a=>`<option value="${a.id}">${esc(a.nome)}</option>`).join("");sel.value=atual;});
+  const busca=norm($("#bibBusca")?.value||"");const filtro=$("#bibFiltro")?.value||"";
+  const visiveis=biblioteca.filter(a=>{const texto=norm(a.nome+" "+a.pasta);if(busca&&!texto.includes(busca))return false;const papel=detectarPapel(a.nome,a.largura,a.altura,a.pasta);const ht=ehHalftone(a.nome,a.pasta);if(!filtro)return true;if(filtro==="halftone")return ht;if(filtro==="outros")return!papel&&!ht;return papel===filtro;});
+  $("#bibGrade").innerHTML=visiveis.length?visiveis.map(a=>{const papel=detectarPapel(a.nome,a.largura,a.altura,a.pasta);const ht=ehHalftone(a.nome,a.pasta);return `<article class="miniatura">${a.tipo.startsWith("image/")?`<img src="${a.url}" alt="${esc(a.nome)}">`:`<div style="height:160px;display:grid;place-items:center;background:#263453;font-weight:800">${esc((a.nome.split(".").pop()||"ARQ").toUpperCase())}</div>`}<div class="info"><div class="nome" title="${esc(a.nome)}">${esc(a.nome)}</div><div class="meta">${a.largura?a.largura+" × "+a.altura+" px · ":""}${fmtBytes(a.tamanho)}${a.pasta?" · "+esc(a.pasta):""}</div><div>${papel?`<span class="etiqueta">${papel} · 300 DPI</span>`:""}${ht?'<span class="etiqueta">Halftone</span>':""}</div><div class="acoes" style="margin-top:8px"><button class="btn pequeno primario" data-bib="halftone" data-id="${a.id}">Halftone</button><button class="btn pequeno" data-bib="mockup" data-id="${a.id}">Mockup</button><button class="btn pequeno" data-bib="montagem" data-id="${a.id}">Montagem</button><button class="btn pequeno" data-bib="baixar" data-id="${a.id}">Baixar</button><button class="btn pequeno perigo" data-bib="excluir" data-id="${a.id}">Excluir</button></div></div></article>`;}).join(""):'<p class="muted">Nenhuma arte aqui ainda. Adicione arquivos ou uma pasta inteira.</p>';
+  setStatus("bibStatus",`<strong>${biblioteca.length}</strong> arte(s) na biblioteca local${busca||filtro?` · mostrando ${visiveis.length}`:""}. Salvas somente neste navegador.`,"ok");
+}
+async function carregarBiblioteca(){const recs=await idbAll();biblioteca=recs.sort((a,b)=>(b.criado||0)-(a.criado||0)).map(r=>({...r,url:r.blob?URL.createObjectURL(r.blob):""}));renderBiblioteca();}
+async function adicionarArquivosBiblioteca(files,comPastas=false){let n=0;for(const f of files){if(!(f.type.startsWith("image/")||f.type==="application/pdf"||/\.psd$/i.test(f.name)))continue;const rel=comPastas?(f.webkitRelativePath||""):"";const pasta=rel.includes("/")?rel.split("/").slice(0,-1).join("/"):"";await registrarArte(f,f.name,pasta,true);n++;}toast(n?n+" arte(s) adicionada(s) à Biblioteca.":"Nenhum arquivo compatível foi encontrado.",!n);}
+$("#bibEnviar").addEventListener("click",()=>$("#bibFile").click());$("#bibPasta").addEventListener("click",()=>$("#bibFolder").click());
+$("#bibFile").addEventListener("change",e=>{adicionarArquivosBiblioteca([...e.target.files]);e.target.value="";});
+$("#bibFolder").addEventListener("change",e=>{adicionarArquivosBiblioteca([...e.target.files],true);e.target.value="";});
+$("#bibBusca").addEventListener("input",renderBiblioteca);$("#bibFiltro").addEventListener("change",renderBiblioteca);
+$("#bibLimpar").addEventListener("click",async()=>{if(!confirm("Esvaziar toda a Biblioteca local deste navegador?"))return;biblioteca.forEach(a=>a.url&&URL.revokeObjectURL(a.url));biblioteca=[];await idbClear();renderBiblioteca();toast("Biblioteca local esvaziada.");});
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-bib]");if(!b)return;const art=artePorId(b.dataset.id);if(!art)return;const acao=b.dataset.bib;
+  if(acao==="excluir"){if(art.url)URL.revokeObjectURL(art.url);biblioteca=biblioteca.filter(x=>x.id!==art.id);await idbDel(art.id);renderBiblioteca();return;}
+  if(acao==="baixar"){download(art.blob,art.nome);return;}
+  if(acao==="halftone"){enviarParaHalftone(art.url,art.nome);return;}
+  if(acao==="mockup"){await carregarArteMockupBlob(art.blob,art.nome);showTool("mockup");return;}
+  if(acao==="montagem"){await gangAdicionarBlob(art.blob,art.nome);showTool("montagem");return;}
+});
+
+/* ============ Removedor de fundo ============ */
+let rmImg=null,rmOriginal=null,rmResultado=null;
+const rmCanvas=$("#rmCanvas"),rmCtx=rmCanvas.getContext("2d",{willReadFrequently:true});
+bindRange("rmTol","rmTolOut");bindRange("rmFeather","rmFeatherOut");
+$("#rmCor").addEventListener("input",e=>$("#rmCorHex").textContent=e.target.value);
+function hexRgb(hex){const n=parseInt(hex.slice(1),16);return[(n>>16)&255,(n>>8)&255,n&255];}
+dropZone("rmDrop","rmFile",async file=>{try{rmImg=await imageFromBlob(file);rmCanvas.width=rmImg.width;rmCanvas.height=rmImg.height;rmCtx.drawImage(rmImg,0,0);rmOriginal=rmCtx.getImageData(0,0,rmCanvas.width,rmCanvas.height);rmResultado=null;$("#rmBaixar").disabled=true;$("#rmEnviarHalftone").disabled=true;$("#rmSalvarBiblio").disabled=true;
+  /* amostra os cantos */ const pts=[[2,2],[rmCanvas.width-3,2],[2,rmCanvas.height-3],[rmCanvas.width-3,rmCanvas.height-3]];const soma=[0,0,0];pts.forEach(([x,y])=>{const i=(y*rmCanvas.width+x)*4;for(let c=0;c<3;c++)soma[c]+=rmOriginal.data[i+c];});const hex="#"+soma.map(v=>Math.round(v/4).toString(16).padStart(2,"0")).join("");$("#rmCor").value=hex;$("#rmCorHex").textContent=hex;
+  setStatus("rmStatus",`Imagem carregada (${rmCanvas.width} × ${rmCanvas.height}px). Ajuste a tolerância e clique em <strong>Remover fundo</strong>.`);}catch{setStatus("rmStatus","Não foi possível abrir essa imagem.","erro");}});
+rmCanvas.addEventListener("click",e=>{if(!rmOriginal)return;const r=rmCanvas.getBoundingClientRect();const x=Math.min(rmCanvas.width-1,Math.max(0,Math.floor((e.clientX-r.left)/r.width*rmCanvas.width)));const y=Math.min(rmCanvas.height-1,Math.max(0,Math.floor((e.clientY-r.top)/r.height*rmCanvas.height)));const d=rmCtx.getImageData(x,y,1,1).data;const hex="#"+[d[0],d[1],d[2]].map(v=>v.toString(16).padStart(2,"0")).join("");$("#rmCor").value=hex;$("#rmCorHex").textContent=hex;toast("Cor do fundo amostrada: "+hex);});
+function limparAlpha(data,w,h){const N=w*h;for(let i=0;i<N;i++)if(data[i*4+3]<=8)data[i*4+3]=0;if(N>6000000)return;const vis=new Uint8Array(N),pilha=new Int32Array(N),comp=new Int32Array(N);
+ for(let p=0;p<N;p++){if(vis[p]||data[p*4+3]===0)continue;let top=0,count=0;pilha[top++]=p;vis[p]=1;while(top>0){const q=pilha[--top];comp[count++]=q;const x=q%w,y=(q/w)|0;
+  if(x>0&&!vis[q-1]&&data[(q-1)*4+3]>0){vis[q-1]=1;pilha[top++]=q-1;} if(x<w-1&&!vis[q+1]&&data[(q+1)*4+3]>0){vis[q+1]=1;pilha[top++]=q+1;}
+  if(y>0&&!vis[q-w]&&data[(q-w)*4+3]>0){vis[q-w]=1;pilha[top++]=q-w;} if(y<h-1&&!vis[q+w]&&data[(q+w)*4+3]>0){vis[q+w]=1;pilha[top++]=q+w;}}
+  if(count<12)for(let k=0;k<count;k++)data[comp[k]*4+3]=0;}}
+$("#rmProcessar").addEventListener("click",async()=>{if(!rmOriginal){toast("Envie uma imagem primeiro.",true);return;}setStatus("rmStatus","Removendo o fundo…");
+ setTimeout(async()=>{try{const w=rmCanvas.width,h=rmCanvas.height,N=w*h;const src=rmOriginal.data;const out=new ImageData(new Uint8ClampedArray(src),w,h);const dst=out.data;const [br,bg,bb]=hexRgb($("#rmCor").value);const tol=+$("#rmTol").value,feather=Math.max(1,+$("#rmFeather").value);const dist=idx=>{const i=idx*4;const dr=src[i]-br,dg=src[i+1]-bg,db=src[i+2]-bb;return Math.sqrt(dr*dr+dg*dg+db*db);};const aplica=idx=>{const d=dist(idx);const fator=d<=tol-feather?0:Math.min(1,Math.max(0,(d-(tol-feather))/feather));dst[idx*4+3]=Math.round(src[idx*4+3]*fator);};
+  if($("#rmModo").value==="global"){for(let i=0;i<N;i++)if(dist(i)<=tol)aplica(i);}
+  else{const vis=new Uint8Array(N),fila=new Int32Array(N);let ini=0,fim=0;const semente=idx=>{if(!vis[idx]&&dist(idx)<=tol){vis[idx]=1;fila[fim++]=idx;}};for(let x=0;x<w;x++){semente(x);semente((h-1)*w+x);}for(let y=0;y<h;y++){semente(y*w);semente(y*w+w-1);}while(ini<fim){const q=fila[ini++];aplica(q);const x=q%w,y=(q/w)|0;if(x>0)semente(q-1);if(x<w-1)semente(q+1);if(y>0)semente(q-w);if(y<h-1)semente(q+w);}}
+  if($("#rmLimpar").checked)limparAlpha(dst,w,h);
+  rmCtx.putImageData(out,0,0);rmResultado=await canvasBlob(rmCanvas);$("#rmBaixar").disabled=false;$("#rmEnviarHalftone").disabled=false;$("#rmSalvarBiblio").disabled=false;setStatus("rmStatus","Fundo removido. Baixe o PNG transparente ou envie direto para o Halftone.","ok");
+ }catch(err){setStatus("rmStatus","Falha ao remover o fundo: "+esc(err.message),"erro");}},30);});
+$("#rmBaixar").addEventListener("click",()=>rmResultado&&download(rmResultado,"sem-fundo-"+Date.now()+".png"));
+$("#rmEnviarHalftone").addEventListener("click",()=>rmResultado&&enviarParaHalftone(URL.createObjectURL(rmResultado),"sem-fundo.png"));
+$("#rmSalvarBiblio").addEventListener("click",async()=>{if(rmResultado){await registrarArte(rmResultado,"sem-fundo-"+Date.now()+".png","Removedor",true);toast("Resultado salvo na Biblioteca.");}});
+
+/* ============ Melhorador ============ */
+let meOrigUrl="",meResultado=null;
+bindRange("meEscala","meEscalaOut",v=>v+"x");bindRange("meNitidez","meNitidezOut",v=>v+"%");bindRange("meSat","meSatOut",v=>"+"+v+"%");bindRange("meContraste","meContrasteOut",v=>v+"%");
+function melhorarImagem(img,scale,sharpen,sat,contrast){return new Promise((res,rej)=>{const W=Math.round((img.naturalWidth||img.width)*scale),H=Math.round((img.naturalHeight||img.height)*scale);if(W*H>30000000)return rej(new Error("Resultado grande demais (limite de 30 MP). Reduza a escala."));const c=document.createElement("canvas");c.width=W;c.height=H;const ctx=c.getContext("2d",{willReadFrequently:true});if(!ctx)return rej(new Error("Canvas indisponível."));ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.filter=`saturate(${100+sat}%) contrast(${contrast}%)`;ctx.drawImage(img,0,0,W,H);ctx.filter="none";
+ if(sharpen>0){const im=ctx.getImageData(0,0,W,H);const out=new Uint8ClampedArray(im.data);const k=sharpen/100;for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){const i=(y*W+x)*4;for(let ch=0;ch<3;ch++){const p=im.data[i+ch];const avg=(im.data[i-4+ch]+im.data[i+4+ch]+im.data[i-W*4+ch]+im.data[i+W*4+ch])/4;const v=p+(p-avg)*(k*2);out[i+ch]=v<0?0:v>255?255:v;}}ctx.putImageData(new ImageData(out,W,H),0,0);}
+ c.toBlob(b=>b?res(b):rej(new Error("Falha ao gerar PNG.")),"image/png");});}
+dropZone("meDrop","meFile",file=>{if(meOrigUrl)URL.revokeObjectURL(meOrigUrl);meOrigUrl=URL.createObjectURL(file);$("#meOriginal").src=meOrigUrl;$("#meResultado").removeAttribute("src");meResultado=null;$("#meBaixar").disabled=true;$("#meEnviarHalftone").disabled=true;$("#meSalvarBiblio").disabled=true;setStatus("meStatus","Imagem carregada. Ajuste e clique em Aprimorar.");});
+$("#meProcessar").addEventListener("click",async()=>{if(!meOrigUrl){toast("Envie uma imagem primeiro.",true);return;}setStatus("meStatus","Aprimorando…");try{const img=await loadImage(meOrigUrl);meResultado=await melhorarImagem(img,+$("#meEscala").value,+$("#meNitidez").value,+$("#meSat").value,+$("#meContraste").value);$("#meResultado").src=URL.createObjectURL(meResultado);$("#meBaixar").disabled=false;$("#meEnviarHalftone").disabled=false;$("#meSalvarBiblio").disabled=false;setStatus("meStatus","Imagem aprimorada e pronta para baixar ou ir ao Halftone.","ok");}catch(e){setStatus("meStatus",esc(e.message),"erro");}});
+$("#meBaixar").addEventListener("click",()=>meResultado&&download(meResultado,"aprimorada-"+Date.now()+".png"));
+$("#meEnviarHalftone").addEventListener("click",()=>meResultado&&enviarParaHalftone(URL.createObjectURL(meResultado),"aprimorada.png"));
+$("#meSalvarBiblio").addEventListener("click",async()=>{if(meResultado){await registrarArte(meResultado,"aprimorada-"+Date.now()+".png","Melhorador",true);toast("Resultado salvo na Biblioteca.");}});
+
+/* ============ Camisetas / Mockup ============ */
+const CAMISETAS={
+ "careca":{rotulo:"Careca",frente:"camisetas/shirt-careca-frente.webp",costas:"camisetas/shirt-careca-costas.webp"},
+ "v":{rotulo:"Gola V",frente:"camisetas/shirt-v-frente.webp",costas:"camisetas/shirt-careca-costas.webp"},
+ "regata":{rotulo:"Regata",frente:"camisetas/shirt-regata-frente.webp",costas:"camisetas/shirt-regata-costas.webp"},
+ "polo":{rotulo:"Polo",frente:"camisetas/shirt-polo-frente.webp",costas:"camisetas/shirt-careca-costas.webp"},
+ "manga-longa":{rotulo:"Manga longa",frente:"camisetas/shirt-manga-longa-frente.webp",costas:"camisetas/shirt-manga-longa-costas.webp"},
+ "baby-look":{rotulo:"Baby look",frente:"camisetas/shirt-babylook-frente.webp",costas:"camisetas/shirt-babylook-costas.webp"},
+ "moletom-fem":{rotulo:"Moletom feminino",frente:"camisetas/shirt-moletom-fem-frente.webp",costas:"camisetas/shirt-moletom-fem-costas.webp"},
+ "infantil":{rotulo:"Infantil",frente:"camisetas/shirt-infantil-frente.webp",costas:"camisetas/shirt-infantil-costas.webp"},
+ "dobrada":{rotulo:"Dobrada",frente:"camisetas/shirt-dobrada.webp",costas:"camisetas/shirt-dobrada.webp"}};
+const CAMISETA_LATERAL="camisetas/shirt-lateral.webp";
+function camisaSrc(modelo,lado){if(lado==="lado-esq"||lado==="lado-dir")return CAMISETA_LATERAL;const m=CAMISETAS[modelo]||CAMISETAS.careca;return lado==="costas"?m.costas:m.frente;}
+$("#mkModelo").innerHTML=Object.entries(CAMISETAS).map(([k,v])=>`<option value="${k}">${v.rotulo}</option>`).join("");
+$("#ctModelo").innerHTML=$("#mkModelo").innerHTML;
+const mkCacheImgs=new Map();function carregarCamisa(src){if(!mkCacheImgs.has(src))mkCacheImgs.set(src,loadImage(src).catch(e=>{mkCacheImgs.delete(src);throw e;}));return mkCacheImgs.get(src);}
+let mkArtUrl="",mkArtNome="";
+bindRange("mkEscala","mkEscalaOut",v=>v+"%");bindRange("mkX","mkXOut",v=>v+"%");bindRange("mkY","mkYOut",v=>v+"%");bindRange("mkRot","mkRotOut",v=>v+"°");bindRange("mkOp","mkOpOut",v=>v+"%");
+function atualizarMockup(){const src=camisaSrc($("#mkModelo").value,$("#mkLado").value);const foto=$("#mkFoto");foto.src=src;foto.style.transform=$("#mkLado").value==="lado-dir"?"scaleX(-1)":"";const cor=$("#mkCorCamada");cor.style.backgroundColor=$("#mkCor").value;cor.style.webkitMaskImage=`url(${src})`;cor.style.maskImage=`url(${src})`;cor.style.webkitMaskSize=cor.style.maskSize="contain";cor.style.webkitMaskRepeat=cor.style.maskRepeat="no-repeat";cor.style.webkitMaskPosition=cor.style.maskPosition="center";cor.style.transform=foto.style.transform;$("#mkPalco").style.backgroundColor=$("#mkFundo").value;
+ const arte=$("#mkArte");arte.style.width=$("#mkEscala").value+"%";arte.style.left=$("#mkX").value+"%";arte.style.top=$("#mkY").value+"%";arte.style.opacity=(+$("#mkOp").value/100);arte.style.transform=`translate(-50%,-50%) rotate(${$("#mkRot").value}deg)`;}
+["mkModelo","mkLado","mkCor","mkFundo","mkEscala","mkX","mkY","mkRot","mkOp"].forEach(id=>document.getElementById(id).addEventListener("input",atualizarMockup));
+$("#mkFoto").addEventListener("load",e=>{const i=e.target;if(i.naturalWidth)$("#mkPalco").style.aspectRatio=i.naturalWidth+"/"+i.naturalHeight;});
+async function carregarArteMockupBlob(blob,nome){if(mkArtUrl)URL.revokeObjectURL(mkArtUrl);mkArtUrl=URL.createObjectURL(blob);mkArtNome=nome;const a=$("#mkArte");a.src=mkArtUrl;a.classList.remove("oculto");atualizarMockup();setStatus("mkStatus","Arte carregada: "+esc(nome),"ok");}
+$("#mkEnviar").addEventListener("click",()=>$("#mkFile").click());$("#mkFile").addEventListener("change",e=>{if(e.target.files[0])carregarArteMockupBlob(e.target.files[0],e.target.files[0].name);e.target.value="";});
+$("#mkUsarBiblio").addEventListener("click",()=>{const a=artePorId($("#mkBiblio").value);if(a)carregarArteMockupBlob(a.blob,a.nome);else toast("Escolha uma arte da Biblioteca.",true);});
+$("#mkCentralizar").addEventListener("click",()=>{$("#mkX").value=50;$("#mkY").value=42;$("#mkRot").value=0;["mkXOut","mkYOut","mkRotOut"].forEach((id,i)=>document.getElementById(id).textContent=["50%","42%","0°"][i]);atualizarMockup();});
+(()=>{const palco=$("#mkPalco"),arte=$("#mkArte");let arr=false;arte.addEventListener("pointerdown",e=>{arr=true;arte.setPointerCapture(e.pointerId);});arte.addEventListener("pointermove",e=>{if(!arr)return;const r=palco.getBoundingClientRect();const x=Math.min(95,Math.max(5,(e.clientX-r.left)/r.width*100));const y=Math.min(95,Math.max(5,(e.clientY-r.top)/r.height*100));$("#mkX").value=Math.round(x);$("#mkY").value=Math.round(y);$("#mkXOut").textContent=Math.round(x)+"%";$("#mkYOut").textContent=Math.round(y)+"%";atualizarMockup();});arte.addEventListener("pointerup",()=>arr=false);arte.addEventListener("pointercancel",()=>arr=false);})();
+function desenharCamisa(ctx,img,x,y,w,h,flip){ctx.save();if(flip){ctx.translate(x+w,y);ctx.scale(-1,1);ctx.drawImage(img,0,0,w,h);}else ctx.drawImage(img,x,y,w,h);ctx.restore();}
+async function camadaCamisaCanvas(modelo,lado,cor,larg,alt){const camisa=await carregarCamisa(camisaSrc(modelo,lado));const c=document.createElement("canvas");c.width=larg;c.height=alt;const x=c.getContext("2d");const flip=lado==="lado-dir";desenharCamisa(x,camisa,0,0,larg,alt,flip);x.globalCompositeOperation="source-in";x.fillStyle=cor;x.fillRect(0,0,larg,alt);x.globalCompositeOperation="multiply";desenharCamisa(x,camisa,0,0,larg,alt,flip);x.globalCompositeOperation="destination-in";desenharCamisa(x,camisa,0,0,larg,alt,flip);return c;}
+$("#mkBaixar").addEventListener("click",async()=>{try{setStatus("mkStatus","Gerando o mockup…");const camisa=await carregarCamisa(camisaSrc($("#mkModelo").value,$("#mkLado").value));const c=document.createElement("canvas");c.width=camisa.naturalWidth;c.height=camisa.naturalHeight;const x=c.getContext("2d");x.fillStyle=$("#mkFundo").value;x.fillRect(0,0,c.width,c.height);x.drawImage(await camadaCamisaCanvas($("#mkModelo").value,$("#mkLado").value,$("#mkCor").value,c.width,c.height),0,0);
+ if(mkArtUrl){const arte=await loadImage(mkArtUrl);const wArte=c.width*(+$("#mkEscala").value/100);const escala=wArte/arte.naturalWidth;const hArte=arte.naturalHeight*escala;x.save();x.globalAlpha=+$("#mkOp").value/100;x.translate(c.width*(+$("#mkX").value/100),c.height*(+$("#mkY").value/100));x.rotate(+$("#mkRot").value*Math.PI/180);x.drawImage(arte,-wArte/2,-hArte/2,wArte,hArte);x.restore();}
+ download(await canvasBlob(c),"mockup-"+Date.now()+".png");setStatus("mkStatus","Mockup exportado em PNG.","ok");}catch(e){setStatus("mkStatus","Falha ao exportar: "+esc(e.message),"erro");}});
+atualizarMockup();
+
+/* ============ Montagem DTF (gang sheet) ============ */
+let gang=[];
+const gsCanvas=$("#gsCanvas"),gsCtx=gsCanvas.getContext("2d");
+function gangDims(){return{larg:Math.max(1,+$("#gsLarg").value||58),alt:Math.max(1,+$("#gsAlt").value||100),gap:Math.max(0,+$("#gsGap").value||0),dpi:+$("#gsDpi").value||300};}
+function gangBox(a){return a.rot?{w:a.hCm,h:a.wCm}:{w:a.wCm,h:a.hCm};}
+async function gangAdicionarBlob(blob,nome){const img=await imageFromBlob(blob);const wPx=img.width||img.naturalWidth,hPx=img.height||img.naturalHeight;const dpi=gangDims().dpi;let wCm=wPx/dpi*2.54;const maxW=gangDims().larg*0.9;if(wCm>maxW)wCm=maxW;if(wCm<2)wCm=Math.min(20,maxW);const item={id:uid(),nome,blob,url:URL.createObjectURL(blob),img,wPx,hPx,wCm:+wCm.toFixed(2),hCm:+(wCm*hPx/wPx).toFixed(2),xCm:gangDims().gap,yCm:gangDims().gap,rot:false};gang.push(item);gangAuto(false);renderGang();setStatus("gsStatus","Arte adicionada: "+esc(nome),"ok");return item;}
+function gangAuto(mostrar=true){const{larg,alt,gap}=gangDims();const ordenadas=[...gang].sort((a,b)=>gangBox(b).h-gangBox(a).h);let x=gap,y=gap,linha=0;for(const a of ordenadas){const b=gangBox(a);if(x+b.w>larg-gap&&x>gap){x=gap;y+=linha+gap;linha=0;}a.xCm=+x.toFixed(2);a.yCm=+y.toFixed(2);x+=b.w+gap;linha=Math.max(linha,b.h);}gang=ordenadas;if(mostrar)renderGang();}
+function gangEfetivoDpi(a){const b=gangBox(a);const px=a.rot?a.hPx:a.wPx;return b.w>0?Math.round(px/(b.w/2.54)):0;}
+function renderGang(){const{larg,alt,dpi}=gangDims();const escalaTela=Math.min(1000/larg,1400/alt);gsCanvas.width=Math.max(320,Math.round(larg*escalaTela));gsCanvas.height=Math.max(320,Math.round(alt*escalaTela));const s=gsCanvas.width/larg;
+ gsCtx.clearRect(0,0,gsCanvas.width,gsCanvas.height);gsCtx.strokeStyle="rgba(20,30,55,.9)";gsCtx.lineWidth=2;gsCtx.strokeRect(1,1,gsCanvas.width-2,gsCanvas.height-2);
+ gang.forEach((a,i)=>{const b=gangBox(a);const x=a.xCm*s,y=a.yCm*s,w=b.w*s,h=b.h*s;gsCtx.save();if(a.rot){gsCtx.translate(x+w/2,y+h/2);gsCtx.rotate(Math.PI/2);gsCtx.drawImage(a.img,-h/2,-w/2,h,w);}else gsCtx.drawImage(a.img,x,y,w,h);gsCtx.restore();gsCtx.strokeStyle="#35c5f4";gsCtx.lineWidth=1.5;gsCtx.strokeRect(x,y,w,h);gsCtx.fillStyle="#0b3a52";gsCtx.fillRect(x,y,24,18);gsCtx.fillStyle="#fff";gsCtx.font="bold 11px system-ui";gsCtx.fillText(String(i+1),x+8,y+13);});
+ const usada=gang.reduce((s,a)=>{const b=gangBox(a);return s+b.w*b.h;},0);const pct=larg*alt?usada/(larg*alt)*100:0;$("#gsAproveitamento").textContent=pct.toFixed(1)+"%";
+ const pxW=Math.round(larg/2.54*dpi),pxH=Math.round(alt/2.54*dpi);$("#gsInfo").innerHTML=`Canvas final: <strong>${pxW} × ${pxH}px</strong> · transparente · ${dpi} DPI · ${gang.length} arte(s)`;
+ $("#gsLista").innerHTML=gang.length?gang.map((a,i)=>{const ef=gangEfetivoDpi(a);return `<div class="item-gang"><img src="${a.url}" alt=""><div><strong>${i+1}. ${esc(a.nome)}</strong><div class="pequeno muted">${a.wPx}×${a.hPx}px · efetivo ${ef} DPI${ef<dpi?' <span style="color:var(--warn)">⚠ abaixo da saída</span>':""}</div><label class="pequeno">Largura cm <input type="number" step="0.5" min="1" value="${a.wCm}" data-gang-w="${a.id}"></label></div><div class="acoes"><button class="btn pequeno" data-gang-rot="${a.id}">Girar 90°</button><button class="btn pequeno" data-gang-duplicar="${a.id}">Duplicar</button><button class="btn pequeno perigo" data-gang-remover="${a.id}">Remover</button></div></div>`;}).join(""):'<p class="muted pequeno">Nenhuma arte adicionada.</p>';}
+$("#gsPreset").addEventListener("change",e=>{if(e.target.value!=="custom"){const[l,a]=e.target.value.split("x");$("#gsLarg").value=l;$("#gsAlt").value=a;}renderGang();});
+["gsLarg","gsAlt","gsGap","gsDpi"].forEach(id=>document.getElementById(id).addEventListener("input",renderGang));
+$("#gsEnviar").addEventListener("click",()=>$("#gsFile").click());$("#gsFile").addEventListener("change",async e=>{for(const f of e.target.files)await gangAdicionarBlob(f,f.name);e.target.value="";});
+$("#gsUsarBiblio").addEventListener("click",async()=>{const a=artePorId($("#gsBiblio").value);if(a)await gangAdicionarBlob(a.blob,a.nome);else toast("Escolha uma arte da Biblioteca.",true);});
+$("#gsAuto").addEventListener("click",()=>{gangAuto();setStatus("gsStatus","Artes reorganizadas na folha.","ok");});
+$("#gsLimpar").addEventListener("click",()=>{gang.forEach(a=>URL.revokeObjectURL(a.url));gang=[];renderGang();setStatus("gsStatus","Folha limpa.");});
+document.addEventListener("input",e=>{const inp=e.target.closest("[data-gang-w]");if(!inp)return;const a=gang.find(x=>x.id===inp.dataset.gangW);if(!a)return;a.wCm=Math.max(1,+inp.value||1);a.hCm=+(a.wCm*a.hPx/a.wPx).toFixed(2);renderGang();});
+document.addEventListener("click",async e=>{const rot=e.target.closest("[data-gang-rot]"),dup=e.target.closest("[data-gang-duplicar]"),rem=e.target.closest("[data-gang-remover]");
+ if(rot){const a=gang.find(x=>x.id===rot.dataset.gangRot);if(a){a.rot=!a.rot;renderGang();}}
+ if(dup){const a=gang.find(x=>x.id===dup.dataset.gangDuplicar);if(a)await gangAdicionarBlob(a.blob,a.nome);}
+ if(rem){const a=gang.find(x=>x.id===rem.dataset.gangRemover);if(a)URL.revokeObjectURL(a.url);gang=gang.filter(x=>x.id!==rem.dataset.gangRemover);renderGang();}});
+(()=>{let alvo=null,dx=0,dy=0;const pos=e=>{const r=gsCanvas.getBoundingClientRect();const{larg,alt}=gangDims();return{x:(e.clientX-r.left)/r.width*larg,y:(e.clientY-r.top)/r.height*alt};};
+ gsCanvas.addEventListener("pointerdown",e=>{const p=pos(e);for(let i=gang.length-1;i>=0;i--){const a=gang[i],b=gangBox(a);if(p.x>=a.xCm&&p.x<=a.xCm+b.w&&p.y>=a.yCm&&p.y<=a.yCm+b.h){alvo=a;dx=p.x-a.xCm;dy=p.y-a.yCm;gsCanvas.setPointerCapture(e.pointerId);break;}}});
+ gsCanvas.addEventListener("pointermove",e=>{if(!alvo)return;const p=pos(e);const{larg,alt}=gangDims();const b=gangBox(alvo);alvo.xCm=+(Math.min(larg-b.w,Math.max(0,p.x-dx))).toFixed(2);alvo.yCm=+(Math.min(alt-b.h,Math.max(0,p.y-dy))).toFixed(2);renderGang();});
+ gsCanvas.addEventListener("pointerup",()=>alvo=null);gsCanvas.addEventListener("pointercancel",()=>alvo=null);})();
+async function gangCanvasFinal(){const{larg,alt,dpi}=gangDims();const W=Math.round(larg/2.54*dpi),H=Math.round(alt/2.54*dpi);if(W*H>90000000)throw new Error("Folha final acima de 90 MP. Reduza o DPI ou o tamanho.");const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");const sx=W/larg,sy=H/alt;for(const a of gang){const b=gangBox(a);const px=a.xCm*sx,py=a.yCm*sy,pw=b.w*sx,ph=b.h*sy;x.save();if(a.rot){x.translate(px+pw/2,py+ph/2);x.rotate(Math.PI/2);x.drawImage(a.img,-ph/2,-pw/2,ph,pw);}else x.drawImage(a.img,px,py,pw,ph);x.restore();}return c;}
+$("#gsExportPng").addEventListener("click",async()=>{if(!gang.length){toast("Adicione artes primeiro.",true);return;}try{setStatus("gsStatus","Renderizando a folha final…");const c=await gangCanvasFinal();download(await pngComDpi(c,gangDims().dpi),"montagem-dtf-"+Date.now()+".png");setStatus("gsStatus",`PNG exportado com ${gangDims().dpi} DPI reais (pHYs).`,"ok");}catch(e){setStatus("gsStatus",esc(e.message),"erro");}});
+$("#gsImprimir").addEventListener("click",async()=>{if(!gang.length){toast("Adicione artes primeiro.",true);return;}try{const c=await gangCanvasFinal();const url=c.toDataURL("image/png");const{larg,alt}=gangDims();const w=window.open("","_blank");if(!w){toast("Permita pop-ups para imprimir.",true);return;}w.document.write(`<!doctype html><title>Montagem DTF</title><style>@page{size:${larg}cm ${alt}cm;margin:0}body{margin:0}img{width:${larg}cm;height:${alt}cm;display:block}</style><img src="${url}">`);w.document.close();setTimeout(()=>{w.focus();w.print();},500);}catch(e){setStatus("gsStatus",esc(e.message),"erro");}});
+renderGang();
+
+/* ============ Catálogo em lote ============ */
+let ctProdutos=[],ctGerados=[];
+bindRange("ctTam","ctTamOut",v=>v+"%");
+async function ctAdicionar(blob,nome){const img=await imageFromBlob(blob);const codigo="DTF-"+String(ctProdutos.length+1).padStart(3,"0");ctProdutos.push({id:uid(),blob,nome,img,url:URL.createObjectURL(blob),codigo,produto:nome.replace(/\.[^.]+$/,""),preco:""});renderCtLista();setStatus("ctStatus",ctProdutos.length+" produto(s) na lista. Edite código, nome e preço e gere o catálogo.");}
+function renderCtLista(){$("#ctLista").innerHTML=ctProdutos.length?ctProdutos.map((p,i)=>`<div class="item-gang"><img src="${p.url}" alt=""><div><strong>${i+1}. ${esc(p.nome)}</strong><div class="linha" style="margin-top:5px"><input value="${esc(p.codigo)}" data-ct="codigo" data-id="${p.id}" title="Código"><input value="${esc(p.produto)}" data-ct="produto" data-id="${p.id}" title="Nome" style="width:130px"><input value="${esc(p.preco)}" data-ct="preco" data-id="${p.id}" placeholder="R$ 0,00" title="Preço" style="width:92px"></div></div><button class="btn pequeno perigo" data-ct-remover="${p.id}">Remover</button></div>`).join(""):'<p class="muted pequeno">Nenhum produto ainda.</p>';}
+document.addEventListener("input",e=>{const inp=e.target.closest("[data-ct]");if(!inp)return;const p=ctProdutos.find(x=>x.id===inp.dataset.id);if(p)p[inp.dataset.ct]=inp.value;});
+document.addEventListener("click",e=>{const rem=e.target.closest("[data-ct-remover]");if(rem){ctProdutos=ctProdutos.filter(p=>p.id!==rem.dataset.ctRemover);renderCtLista();}});
+$("#ctEnviar").addEventListener("click",()=>$("#ctFile").click());$("#ctFile").addEventListener("change",async e=>{for(const f of e.target.files)await ctAdicionar(f,f.name);e.target.value="";});
+$("#ctUsarBiblio").addEventListener("click",async()=>{const imgs=biblioteca.filter(a=>a.tipo.startsWith("image/"));if(!imgs.length){toast("Biblioteca sem imagens.",true);return;}for(const a of imgs)await ctAdicionar(a.blob,a.nome);});
+async function criarCardCatalogo(p){const size=900,totalH=1150;const c=document.createElement("canvas");c.width=size;c.height=totalH;const x=c.getContext("2d");x.fillStyle="#111827";x.fillRect(0,0,size,totalH);x.fillStyle="#e8eaed";x.fillRect(0,0,size,size);
+ const camisa=await carregarCamisa(camisaSrc($("#ctModelo").value,$("#ctPosicao").value==="Costas"?"costas":"frente"));const escala=Math.min(size*0.86/camisa.naturalWidth,size*0.92/camisa.naturalHeight);const cw=camisa.naturalWidth*escala,ch=camisa.naturalHeight*escala,cx=(size-cw)/2,cy=(size-ch)/2;
+ const camada=document.createElement("canvas");camada.width=size;camada.height=size;const lx=camada.getContext("2d");lx.drawImage(camisa,cx,cy,cw,ch);lx.globalCompositeOperation="source-in";lx.fillStyle=$("#ctCor").value;lx.fillRect(0,0,size,size);lx.globalCompositeOperation="multiply";lx.drawImage(camisa,cx,cy,cw,ch);lx.globalCompositeOperation="destination-in";lx.drawImage(camisa,cx,cy,cw,ch);x.drawImage(camada,0,0);
+ const maxW=size*(+$("#ctTam").value/100),maxH=size*0.42;const s=Math.min(maxW/(p.img.width||p.img.naturalWidth),maxH/(p.img.height||p.img.naturalHeight));const aw=(p.img.width||p.img.naturalWidth)*s,ah=(p.img.height||p.img.naturalHeight)*s;const ax=(size-aw)/2,ay=$("#ctPosicao").value==="Peito"?size*0.30:size*0.34;x.drawImage(p.img,ax,ay,aw,ah);
+ const agua=$("#ctAgua").value.trim();if(agua){x.save();x.globalAlpha=0.16;x.fillStyle="#ffffff";x.font="bold 34px system-ui";x.translate(size/2,size/2);x.rotate(-0.5);for(let yy=-600;yy<650;yy+=150)for(let xx=-650;xx<650;xx+=330)x.fillText(agua,xx,yy);x.restore();}
+ x.fillStyle="#ffffff";x.font="bold 42px system-ui";x.fillText(p.codigo||"",36,975);x.font="30px system-ui";x.fillText((p.produto||"").slice(0,42),36,1025);x.fillStyle="#7dd3fc";x.font="bold 40px system-ui";x.fillText(p.preco||"",36,1085);x.fillStyle="rgba(255,255,255,.65)";x.font="24px system-ui";x.textAlign="right";x.fillText($("#ctMarca").value||"",size-36,1085);return c;}
+$("#ctGerar").addEventListener("click",async()=>{if(!ctProdutos.length){toast("Envie estampas primeiro.",true);return;}ctGerados=[];$("#ctPreview").innerHTML="";let i=0;for(const p of ctProdutos){i++;setStatus("ctStatus",`Gerando mockup ${i} de ${ctProdutos.length}: ${esc(p.nome)}`);const card=await criarCardCatalogo(p);const url=card.toDataURL("image/jpeg",0.9);ctGerados.push({...p,cardUrl:url});$("#ctPreview").insertAdjacentHTML("beforeend",`<article class="miniatura"><img src="${url}" alt="${esc(p.produto)}"><div class="info"><strong>${esc(p.codigo)}</strong><div class="meta">${esc(p.produto)} ${p.preco?"· "+esc(p.preco):""}</div></div></article>`);} $("#ctBaixarHtml").disabled=false;$("#ctImprimir").disabled=false;setStatus("ctStatus",`Catálogo com ${ctGerados.length} produto(s) gerado.`,"ok");});
+function catalogoHtml(paraImprimir=false){const marca=esc($("#ctMarca").value||"Catálogo");return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${marca} — Catálogo</title><style>body{font-family:system-ui;background:#0b1020;color:#fff;margin:0;padding:28px}h1{text-align:center}.grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;max-width:1250px;margin:auto}figure{margin:0;background:#111827;border-radius:12px;overflow:hidden}img{width:100%;display:block}@media print{body{background:#fff}.grade{grid-template-columns:repeat(2,1fr)}figure{break-inside:avoid}}</style></head><body><h1>${marca}</h1><div class="grade">${ctGerados.map(p=>`<figure><img src="${p.cardUrl}" alt="${esc(p.produto)}"></figure>`).join("")}</div>${paraImprimir?"":""}</body></html>`;}
+$("#ctBaixarHtml").addEventListener("click",()=>{if(ctGerados.length)download(new Blob([catalogoHtml()],{type:"text/html;charset=utf-8"}),"catalogo-dtflexpro.html");});
+$("#ctImprimir").addEventListener("click",()=>{const w=window.open("","_blank");if(!w){toast("Permita pop-ups para imprimir.",true);return;}w.document.write(catalogoHtml(true));w.document.close();setTimeout(()=>{w.focus();w.print();},600);});
+renderCtLista();
+
+/* ============ Gestão DTF (localStorage) ============ */
+const GESTAO_KEY="dtflexpro-html-gestao-v1";
+const GESTAO_COLECOES={
+ customers:{rotulo:"Clientes",campos:[["name","Nome","text"],["company","Empresa","text"],["phone","Telefone","text"],["email","E-mail","email"]]},
+ orders:{rotulo:"Pedidos / Produção",campos:[["number","Nº do pedido","text"],["customer","Cliente","text"],["product","Produto","text"],["total","Valor (R$)","number"],["meters","Metros","number"],["status","Status","select:Recebido|Aguardando|Em produção|Conferência|Pronto|Entregue"],["due","Prazo","date"]]},
+ inventory:{rotulo:"Estoque",campos:[["code","Código","text"],["name","Item","text"],["category","Categoria","text"],["unit","Unidade","text"],["stock","Estoque","number"],["minimum","Mínimo","number"],["cost","Custo (R$)","number"]]},
+ transactions:{rotulo:"Financeiro",campos:[["description","Descrição","text"],["category","Categoria","text"],["type","Tipo","select:Entrada|Saída"],["amount","Valor (R$)","number"],["date","Data","date"]]},
+ taxes:{rotulo:"Impostos",campos:[["name","Imposto","text"],["rate","Alíquota (%)","number"],["active","Ativo","select:Sim|Não"]]},
+ users:{rotulo:"Usuários",campos:[["name","Nome","text"],["email","E-mail","email"],["role","Função","text"],["active","Ativo","select:Sim|Não"]]}};
+let gestaoTab="dashboard",gestaoColecao="orders";
+function gestaoPadrao(){return{customers:[],orders:[],inventory:[],transactions:[],taxes:[],users:[],settings:{company:"",cnpj:"",phone:"",filmCost:0,inkCost:0,hourlyRate:0,margin:0}};}
+function gestaoLer(){try{return{...gestaoPadrao(),...JSON.parse(localStorage.getItem(GESTAO_KEY)||"{}")};}catch{return gestaoPadrao();}}
+function gestaoSalvar(){try{localStorage.setItem(GESTAO_KEY,JSON.stringify(gestaoStore));}catch{}}
+let gestaoStore=gestaoLer();
+function campoGestaoHTML(col,campo){const[k,rot,tipo]=campo;const id=`g-${col}-${k}`;if(tipo.startsWith("select:")){const ops=tipo.slice(7).split("|").map(o=>`<option>${o}</option>`).join("");return `<div class="campo"><label>${rot}</label><select id="${id}">${ops}</select></div>`;}return `<div class="campo"><label>${rot}</label><input id="${id}" type="${tipo}" ${tipo==="number"?'step="0.01"':""}></div>`;}
+function renderGestao(){gestaoSalvar();const s=gestaoStore;const entradas=s.transactions.filter(t=>t.type==="Entrada").reduce((a,t)=>a+(+t.amount||0),0);const saidas=s.transactions.filter(t=>t.type==="Saída").reduce((a,t)=>a+(+t.amount||0),0);const abertos=s.orders.filter(o=>o.status!=="Entregue").length;const baixo=s.inventory.filter(i=>(+i.stock||0)<=(+i.minimum||0)).length;
+ const abas=[["dashboard","Visão geral"],["colecoes","Cadastros e operação"],["reports","Relatórios"],["settings","Configurações"]].map(([id,r])=>`<button class="${gestaoTab===id?"ativo":""}" data-gtab="${id}">${r}</button>`).join("");
+ let corpo="";
+ if(gestaoTab==="dashboard"){corpo=`<div class="metricas"><div class="metrica"><span>Pedidos em aberto</span><strong>${abertos}</strong></div><div class="metrica"><span>Saldo financeiro</span><strong>${BRL(entradas-saidas)}</strong></div><div class="metrica"><span>Clientes</span><strong>${s.customers.length}</strong></div><div class="metrica"><span>Itens abaixo do mínimo</span><strong>${baixo}</strong></div></div>
+ <div class="card" style="margin-top:14px"><h3 class="sem-margem">Produção agora</h3>${s.orders.filter(o=>o.status!=="Entregue").slice(0,8).map(o=>`<p class="pequeno"><span class="etiqueta">${esc(o.status||"Recebido")}</span> <strong>${esc(o.number||"")}</strong> · ${esc(o.customer||"")} · ${esc(o.product||"")}${o.due?" · prazo "+esc(o.due):""}</p>`).join("")||'<p class="muted pequeno">Nenhum pedido em aberto. Cadastre em “Cadastros e operação”.</p>'}</div>`;}
+ else if(gestaoTab==="colecoes"){const cfg=GESTAO_COLECOES[gestaoColecao];const linhas=s[gestaoColecao]||[];
+  corpo=`<div class="abas">${Object.entries(GESTAO_COLECOES).map(([id,c])=>`<button class="${gestaoColecao===id?"ativo":""}" data-gcol="${id}">${c.rotulo}</button>`).join("")}</div>
+  <form class="card" id="gForm"><h3 class="sem-margem">Adicionar em ${cfg.rotulo}</h3><div class="form-grade" style="margin-top:12px">${cfg.campos.map(c=>campoGestaoHTML(gestaoColecao,c)).join("")}</div><button class="btn primario" style="margin-top:12px">Adicionar</button></form>
+  <div class="card" style="margin-top:14px"><div class="tabela-wrap"><table><thead><tr>${cfg.campos.map(c=>`<th>${c[1]}</th>`).join("")}<th>Ação</th></tr></thead><tbody>${linhas.map(item=>`<tr>${cfg.campos.map(([k,,tipo])=>`<td>${gestaoColecao==="orders"&&k==="status"?`<select data-gstatus="${item.id}">${["Recebido","Aguardando","Em produção","Conferência","Pronto","Entregue"].map(o=>`<option ${o===item.status?"selected":""}>${o}</option>`).join("")}</select>`:tipo==="number"&&(k.includes("total")||k.includes("amount")||k.includes("cost"))?BRL(item[k]):esc(item[k]??"")}</td>`).join("")}<td><button type="button" class="btn pequeno perigo" data-gdel="${item.id}">Excluir</button></td></tr>`).join("")||`<tr><td colspan="${cfg.campos.length+1}" class="muted">Nenhum registro ainda.</td></tr>`}</tbody></table></div></div>`;}
+ else if(gestaoTab==="reports"){const porStatus={};s.orders.forEach(o=>{const k=o.status||"Recebido";porStatus[k]=porStatus[k]||{qtd:0,total:0};porStatus[k].qtd++;porStatus[k].total+=+o.total||0;});const porCat={};s.transactions.forEach(t=>{const k=t.category||"Sem categoria";porCat[k]=(porCat[k]||0)+((t.type==="Entrada"?1:-1)*(+t.amount||0));});
+  corpo=`<div class="colunas-iguais"><div class="card"><h3 class="sem-margem">Pedidos por status</h3>${Object.entries(porStatus).map(([k,v])=>`<p class="pequeno"><strong>${esc(k)}:</strong> ${v.qtd} pedido(s) · ${BRL(v.total)}</p>`).join("")||'<p class="muted pequeno">Sem pedidos.</p>'}</div><div class="card"><h3 class="sem-margem">Financeiro por categoria</h3>${Object.entries(porCat).map(([k,v])=>`<p class="pequeno"><strong>${esc(k)}:</strong> ${BRL(v)}</p>`).join("")||'<p class="muted pequeno">Sem lançamentos.</p>'}<p class="pequeno"><strong>Entradas:</strong> ${BRL(entradas)} · <strong>Saídas:</strong> ${BRL(saidas)}</p></div></div>
+  <div class="card" style="margin-top:14px"><h3 class="sem-margem">Backup dos dados</h3><p class="pequeno muted">Exporte/importe um JSON com toda a Gestão deste navegador.</p><div class="linha"><button class="btn" id="gExportar">Exportar JSON</button><label class="btn" for="gImportarFile">Importar JSON</label><input id="gImportarFile" type="file" accept="application/json" class="oculto"><button class="btn perigo" id="gZerar">Zerar Gestão</button></div></div>`;}
+ else{const st=s.settings;corpo=`<form class="card" id="gSettings"><h3 class="sem-margem">Configurações da empresa</h3><div class="form-grade" style="margin-top:12px">
+  <div class="campo"><label>Empresa</label><input id="gs-company" type="text" value="${esc(st.company)}"></div><div class="campo"><label>CNPJ</label><input id="gs-cnpj" type="text" value="${esc(st.cnpj)}"></div><div class="campo"><label>Telefone</label><input id="gs-phone" type="text" value="${esc(st.phone)}"></div>
+  <div class="campo"><label>Custo do filme (R$)</label><input id="gs-filmCost" type="number" step="0.01" value="${st.filmCost||0}"></div><div class="campo"><label>Custo de tinta (R$)</label><input id="gs-inkCost" type="number" step="0.01" value="${st.inkCost||0}"></div><div class="campo"><label>Hora de produção (R$)</label><input id="gs-hourlyRate" type="number" step="0.01" value="${st.hourlyRate||0}"></div>
+  <div class="campo"><label>Margem padrão (%)</label><input id="gs-margin" type="number" step="0.5" value="${st.margin||0}"></div></div><button class="btn primario" style="margin-top:12px">Salvar configurações</button></form>`;}
+ $("#gestaoApp").innerHTML=`<div class="abas">${abas}</div>${corpo}`;
+ const form=$("#gForm");if(form)form.addEventListener("submit",e=>{e.preventDefault();const cfg=GESTAO_COLECOES[gestaoColecao];const item={id:uid()};cfg.campos.forEach(([k,,tipo])=>{const el=document.getElementById(`g-${gestaoColecao}-${k}`);item[k]=tipo==="number"?(parseFloat(el.value)||0):el.value.trim();});gestaoStore[gestaoColecao].unshift(item);renderGestao();toast("Registro adicionado.");});
+ const sf=$("#gSettings");if(sf)sf.addEventListener("submit",e=>{e.preventDefault();["company","cnpj","phone"].forEach(k=>gestaoStore.settings[k]=document.getElementById("gs-"+k).value.trim());["filmCost","inkCost","hourlyRate","margin"].forEach(k=>gestaoStore.settings[k]=parseFloat(document.getElementById("gs-"+k).value)||0);renderGestao();toast("Configurações salvas neste navegador.");});
+ const exp=$("#gExportar");if(exp)exp.addEventListener("click",()=>download(new Blob([JSON.stringify(gestaoStore,null,2)],{type:"application/json"}),"gestao-dtflexpro-backup.json"));
+ const imp=$("#gImportarFile");if(imp)imp.addEventListener("change",async()=>{try{const dados=JSON.parse(await imp.files[0].text());gestaoStore={...gestaoPadrao(),...dados};renderGestao();toast("Backup importado.");}catch{toast("JSON inválido.",true);}});
+ const zerar=$("#gZerar");if(zerar)zerar.addEventListener("click",()=>{if(confirm("Apagar todos os dados da Gestão neste navegador?")){gestaoStore=gestaoPadrao();renderGestao();}});
+ $$("#gestaoApp [data-gtab]").forEach(b=>b.addEventListener("click",()=>{gestaoTab=b.dataset.gtab;renderGestao();}));
+ $$("#gestaoApp [data-gcol]").forEach(b=>b.addEventListener("click",()=>{gestaoColecao=b.dataset.gcol;renderGestao();}));
+ $$("#gestaoApp [data-gdel]").forEach(b=>b.addEventListener("click",()=>{gestaoStore[gestaoColecao]=gestaoStore[gestaoColecao].filter(x=>x.id!==b.dataset.gdel);renderGestao();}));
+ $$("#gestaoApp [data-gstatus]").forEach(sel=>sel.addEventListener("change",()=>{const o=gestaoStore.orders.find(x=>x.id===sel.dataset.gstatus);if(o){o.status=sel.value;gestaoSalvar();toast("Status atualizado.");}}));
+}
+renderGestao();
+
+/* ============ Calculadora ============ */
+function calcular(){const L=parseFloat($("#calcL").value)||0,A=parseFloat($("#calcA").value)||0,p=parseFloat($("#calcP").value)||0,q=parseInt($("#calcQ").value)||0,m=parseFloat($("#calcM").value)||0;const area=L*A,custoUnit=area*p,custoTotal=custoUnit*q,venda=custoTotal*(1+m/100);$("#calcResultado").innerHTML=`Área: <strong>${area.toFixed(2)} cm²</strong><br>Custo unitário: <strong>${BRL(custoUnit)}</strong><br>Custo total: <strong>${BRL(custoTotal)}</strong><br>Preço de venda: <strong>${BRL(venda)}</strong><br>Lucro: <strong>${BRL(venda-custoTotal)}</strong>${q?`<br>Venda por peça: <strong>${BRL(venda/q)}</strong>`:""}`;
+ const FL=+$("#fitFL").value||0,FA=+$("#fitFA").value||0,AL=+$("#fitAL").value||0,AA=+$("#fitAA").value||0,gap=+$("#fitGap").value||0;const encaixe=(w,h)=>{const cols=w>0?Math.floor((FL+gap)/(w+gap)):0;const rows=h>0?Math.floor((FA+gap)/(h+gap)):0;return{cols,rows,qtd:cols*rows};};const normal=encaixe(AL,AA);const girado=encaixe(AA,AL);const usarGirado=$("#fitRot").value==="1"&&girado.qtd>normal.qtd;const melhor=usarGirado?girado:normal;const uso=FL*FA?melhor.qtd*AL*AA/(FL*FA)*100:0;
+ $("#fitResultado").innerHTML=`Cabem <strong>${melhor.qtd} arte(s)</strong> (${melhor.cols} colunas × ${melhor.rows} linhas)${usarGirado?" — girando a arte 90°":""}.<br>Aproveitamento da folha: <strong>${uso.toFixed(1)}%</strong> · desperdício aproximado: ${(100-uso).toFixed(1)}%.`;}
+["calcL","calcA","calcP","calcQ","calcM","fitFL","fitFA","fitAL","fitAA","fitGap","fitRot"].forEach(id=>document.getElementById(id).addEventListener("input",calcular));calcular();
+
+/* ============ início ============ */
+carregarBiblioteca();
+const inicial=(location.hash||"#inicio").slice(1);if(document.getElementById("painel-"+inicial))showTool(inicial);
+</script>
+</body>
+</html>

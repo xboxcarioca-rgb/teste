@@ -12,6 +12,19 @@ em lote e Gestão DTF) continua em `/app`, com acesso por e-mail + código e ass
 > da arquitetura e dos problemas encontrados está em **[ANALISE.md](./ANALISE.md)**.
 > O zip original não tinha README — este arquivo foi criado na importação.
 
+## Versão HTML (última versão + todas as ferramentas)
+
+Em [`public/versao-html/`](./public/versao-html/LEIA-ME.md) está a **edição
+estática em HTML**: abra `/versao-html/` no site ou baixe
+`DTFLEXPRO-versao-html.zip` (821 KB), extraia e abra `index.html` no navegador —
+sem servidor e sem login. Inclui a última versão do Halftone (build
+`dpi300-universal-v71`, JS/CSS idênticos aos originais) e as ferramentas locais:
+removedor de fundo, melhorador, mockups (9 modelos), montagem DTF @300 DPI,
+catálogo em lote (exporta catálogo HTML/PDF), biblioteca local (IndexedDB),
+Gestão DTF (localStorage) e calculadora. O que depende de servidor (Drive,
+checkout, IA no servidor) fica só na plataforma online — detalhes no
+`LEIA-ME.md` da pasta.
+
 ## Stack
 
 | Camada | Tecnologia |

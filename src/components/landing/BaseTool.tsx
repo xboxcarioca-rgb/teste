@@ -426,7 +426,14 @@ export function BaseTool() {
           <Link to="/app" className="font-semibold text-brand underline-offset-4 hover:underline">
             plataforma completa
           </Link>
-          , com seu acesso por e-mail e código.
+          , com seu acesso por e-mail e código. Prefere tudo em arquivo? Abra a{" "}
+          <a
+            href="/versao-html/index.html"
+            className="font-semibold text-brand underline-offset-4 hover:underline"
+          >
+            versão HTML com todas as ferramentas
+          </a>{" "}
+          (última versão do Halftone + ferramentas locais, sem servidor).
         </p>
       </div>
     </section>
