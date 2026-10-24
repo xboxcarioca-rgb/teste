@@ -25,6 +25,7 @@ import { Route as ValidateAccessCodeRouteImport } from './routes/validate-access
 import { Route as VerifyAdminRouteImport } from './routes/verify-admin'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as ApiDriveFileRouteImport } from './routes/api/drive-file'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as CatalogoTokenRouteImport } from './routes/catalogo.$token'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicDesktopActivateRouteImport } from './routes/api/public/desktop-activate'
@@ -114,6 +115,11 @@ const ApiDriveFileRoute = ApiDriveFileRouteImport.update({
   path: '/api/drive-file',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CatalogoTokenRoute = CatalogoTokenRouteImport.update({
   id: '/catalogo/$token',
   path: '/catalogo/$token',
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/verify-admin': typeof VerifyAdminRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/drive-file': typeof ApiDriveFileRoute
+  '/api/health': typeof ApiHealthRoute
   '/catalogo/$token': typeof CatalogoTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/desktop-activate': typeof ApiPublicDesktopActivateRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByTo {
   '/verify-admin': typeof VerifyAdminRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/drive-file': typeof ApiDriveFileRoute
+  '/api/health': typeof ApiHealthRoute
   '/catalogo/$token': typeof CatalogoTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/desktop-activate': typeof ApiPublicDesktopActivateRoute
@@ -223,6 +231,7 @@ export interface FileRoutesById {
   '/verify-admin': typeof VerifyAdminRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/drive-file': typeof ApiDriveFileRoute
+  '/api/health': typeof ApiHealthRoute
   '/catalogo/$token': typeof CatalogoTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/desktop-activate': typeof ApiPublicDesktopActivateRoute
@@ -250,6 +259,7 @@ export interface FileRouteTypes {
     | '/verify-admin'
     | '/.well-known/oauth-protected-resource'
     | '/api/drive-file'
+    | '/api/health'
     | '/catalogo/$token'
     | '/.lovable/oauth/consent'
     | '/api/public/desktop-activate'
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
     | '/verify-admin'
     | '/.well-known/oauth-protected-resource'
     | '/api/drive-file'
+    | '/api/health'
     | '/catalogo/$token'
     | '/.lovable/oauth/consent'
     | '/api/public/desktop-activate'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '/verify-admin'
     | '/.well-known/oauth-protected-resource'
     | '/api/drive-file'
+    | '/api/health'
     | '/catalogo/$token'
     | '/.lovable/oauth/consent'
     | '/api/public/desktop-activate'
@@ -326,6 +338,7 @@ export interface RootRouteChildren {
   VerifyAdminRoute: typeof VerifyAdminRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiDriveFileRoute: typeof ApiDriveFileRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   CatalogoTokenRoute: typeof CatalogoTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicDesktopActivateRoute: typeof ApiPublicDesktopActivateRoute
@@ -449,6 +462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDriveFileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/catalogo/$token': {
       id: '/catalogo/$token'
       path: '/catalogo/$token'
@@ -519,6 +539,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiDriveFileRoute: ApiDriveFileRoute,
+  ApiHealthRoute: ApiHealthRoute,
   CatalogoTokenRoute: CatalogoTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicDesktopActivateRoute: ApiPublicDesktopActivateRoute,

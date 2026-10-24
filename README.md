@@ -23,6 +23,26 @@ Landing page + ferramentas profissionais de DTF em uma só aplicação: **Halfto
 | Desktop | Electron + NSIS (`electron/`, `setup.nsi`) |
 | Deploy | Cloudflare (Wrangler/Nitro) ou qualquer host Node/estático |
 
+### Diagnóstico rápido do deploy: `/api/health`
+
+Abra `https://SEU-DOMINIO/api/health`. Ele responde **apenas se** cada variável
+existe (nunca o valor) e se o banco está acessível:
+
+```json
+{
+  "ok": false,
+  "login": "indisponível",
+  "missing": [
+    { "variable": "SUPABASE_SERVICE_ROLE_KEY",
+      "ondeObter": "Supabase → Project Settings → API → service_role (secreta)" }
+  ],
+  "database": { "reachable": false }
+}
+```
+
+`ok: true` + `HTTP 200` significa que o login está pronto. `503` com `missing`
+lista exatamente o que falta configurar.
+
 ## Se o login (e-mail + código) parar de funcionar
 
 O app identifica o dispositivo por `device_key_hash` e guarda a sessão em

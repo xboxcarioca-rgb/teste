@@ -415,7 +415,10 @@ export const validateAccessCode = createServerFn({ method: "POST" })
       console.error("[login] SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY ausentes no servidor");
       return {
         ok: false,
-        error: "Login indisponível: o servidor está sem SUPABASE_SERVICE_ROLE_KEY. Configure a variável e tente novamente.",
+        error:
+          "Login indisponível: o servidor está sem SUPABASE_SERVICE_ROLE_KEY. " +
+          "Configure essa variável no painel da hospedagem (Supabase → Project Settings → API → service_role) " +
+          "e faça um novo deploy. Diagnóstico: acesse /api/health.",
       };
     }
     const db = getDb();
