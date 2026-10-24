@@ -1,0 +1,1 @@
+UPDATE public.plans SET price_cents = 16809, updated_at = now() WHERE code = 'anual';

@@ -1,0 +1,49 @@
+# ============================================================================
+# DTFLEXPRO 2410 — Netlify (deploy a partir do Git)
+#
+# Build no servidor da Netlify (recomendado). Se preferir subir arquivos já
+# construídos, use o pacote `dtflexpro-2410-netlify.zip` (veja DEPLOY-NETLIFY.md).
+# ============================================================================
+
+[build]
+  command = "DEPLOY_TARGET=netlify npm run build"
+  publish = "dist"
+  functions = ".netlify/functions-internal"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Assets com hash podem ficar em cache eterno
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    cache-control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/brand/*"
+  [headers.values]
+    cache-control = "public, max-age=604800"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# ============================================================================
+# Variáveis pedidas automaticamente no botão "Deploy to Netlify"
+# (https://app.netlify.com/start/deploy?repository=...)
+# Os segredos ficam em branco de propósito: você preenche na tela.
+# ============================================================================
+[template.environment]
+  SUPABASE_URL = "https://ifollbyypwxnkddepxae.supabase.co"
+  VITE_SUPABASE_URL = "https://ifollbyypwxnkddepxae.supabase.co"
+  SUPABASE_SERVICE_ROLE_KEY = ""
+  SUPABASE_PUBLISHABLE_KEY = ""
+  VITE_SUPABASE_PUBLISHABLE_KEY = ""
+  SESSION_SECRET = ""
+  APP_URL = ""

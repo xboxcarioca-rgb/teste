@@ -1,0 +1,30 @@
+CONTRATO DE LICENÇA DE USO — DTFLEXPRO STUDIO
+
+1. OBJETO
+Este contrato concede ao usuário uma licença de uso pessoal e intransferível
+do software DTFLEXPRO Studio, vinculada a um código de ativação válido e a um
+único dispositivo (máquina) por licença.
+
+2. ATIVAÇÃO E VALIDADE
+O software exige código de ativação. A licença é válida enquanto o plano
+(mensal ou anual) estiver ativo. Ao expirar, o software solicitará nova
+ativação e o acesso será bloqueado até a renovação.
+
+3. RESTRIÇÕES
+É proibido copiar, distribuir, revender, descompilar, realizar engenharia
+reversa, remover proteções ou compartilhar o código de ativação. A violação
+resulta em bloqueio imediato da licença, sem reembolso.
+
+4. PROPRIEDADE
+Todo o código, arte, marca e algoritmos são propriedade da DTFLEXPRO
+(CNPJ 63.468.735/0001-64). A licença não transfere qualquer propriedade.
+
+5. GARANTIA
+O software é fornecido "no estado em que se encontra". A DTFLEXPRO não se
+responsabiliza por perdas decorrentes do uso, sendo o resultado de impressão
+dependente de equipamento, tinta e material do usuário.
+
+6. SUPORTE
+O suporte é prestado via WhatsApp durante a vigência do plano.
+
+Ao clicar em "Eu Concordo", você aceita integralmente estes termos.

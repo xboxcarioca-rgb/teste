@@ -1,0 +1,2923 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>DTFLEXPRO Halftone Engine</title>
+    <style>
+      @media print {
+        html, body { display: none !important; visibility: hidden !important; background: #000 !important; }
+      }
+      html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+      input, textarea { -webkit-user-select: text; user-select: text; }
+    </style>
+    <script>
+      // Proteção anti-print dentro do iframe da ferramenta
+      (function () {
+        document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+        document.addEventListener('keydown', function (e) {
+          var k = e.key;
+          if (k === 'PrintScreen') {
+            try { navigator.clipboard.writeText(''); } catch (_) {}
+            e.preventDefault();
+            alert('Captura de tela bloqueada nesta ferramenta.');
+            return;
+          }
+          if ((e.ctrlKey || e.metaKey) && (k === 'p' || k === 'P' || k === 's' || k === 'S')) {
+            e.preventDefault();
+            return;
+          }
+          if (k === 'F12' || ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i','I','j','J','c','C'].indexOf(k) !== -1)) {
+            e.preventDefault();
+          }
+        }, true);
+        window.addEventListener('beforeprint', function () { document.body.style.visibility = 'hidden'; });
+        window.addEventListener('afterprint', function () { document.body.style.visibility = ''; });
+
+
+
+      })();
+    </script>
+    <script>
+      // ====== Patch PNG export: final file is always verified at real 300 DPI (pHYs) ======
+      (function () {
+        var DPI = 300;
+        var PPM_300 = 11811;
+        function mmToPx(mm){ return Math.round(mm / 25.4 * DPI); }
+        var PAPER_FORMATS = {
+          A2: { widthMm: 420, heightMm: 594 },
+          A3: { widthMm: 297, heightMm: 420 },
+          A4: { widthMm: 210, heightMm: 297 }
+        };
+        Object.keys(PAPER_FORMATS).forEach(function(key){
+          PAPER_FORMATS[key].widthPx = mmToPx(PAPER_FORMATS[key].widthMm);
+          PAPER_FORMATS[key].heightPx = mmToPx(PAPER_FORMATS[key].heightMm);
+        });
+        var A4_WIDTH = PAPER_FORMATS.A4.widthPx;
+        var A4_HEIGHT = PAPER_FORMATS.A4.heightPx;
+        var A3_WIDTH = PAPER_FORMATS.A3.widthPx;
+        var A3_HEIGHT = PAPER_FORMATS.A3.heightPx;
+        var A2_WIDTH = PAPER_FORMATS.A2.widthPx;
+        var A2_HEIGHT = PAPER_FORMATS.A2.heightPx;
+        var PNG_SIG = new Uint8Array([137,80,78,71,13,10,26,10]);
+
+        try {
+          if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function (regs) { regs.forEach(function (reg) { reg.unregister(); }); });
+          if ('caches' in window) caches.keys().then(function (keys) { keys.forEach(function (key) { caches.delete(key); }); });
+        } catch (_) {}
+
+        var CRC_TABLE = (function(){
+          var t = new Uint32Array(256);
+          for (var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=(c&1)?(0xedb88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}
+          return t;
+        })();
+        function crc32(b){var c=0xffffffff;for(var i=0;i<b.length;i++)c=CRC_TABLE[(c^b[i])&0xff]^(c>>>8);return (c^0xffffffff)>>>0;}
+        function isPng(buf){ if (!buf || buf.length < 33) return false; for (var i=0;i<8;i++) if (buf[i]!==PNG_SIG[i]) return false; return true; }
+        function chunkType(buf, off){ return String.fromCharCode(buf[off+4],buf[off+5],buf[off+6],buf[off+7]); }
+        function concat(parts){ var total=0; for (var i=0;i<parts.length;i++) total+=parts[i].length; var out=new Uint8Array(total), cur=0; for (var j=0;j<parts.length;j++){ out.set(parts[j], cur); cur+=parts[j].length; } return out; }
+        function buildPhys(){
+          var data = new Uint8Array(9);
+          var dv = new DataView(data.buffer);
+          dv.setUint32(0, PPM_300, false);
+          dv.setUint32(4, PPM_300, false);
+          data[8]=1;
+          var type = new Uint8Array([0x70,0x48,0x59,0x73]);
+          var body = new Uint8Array(4+9);
+          body.set(type,0); body.set(data,4);
+          var out = new Uint8Array(4+4+9+4);
+          var od = new DataView(out.buffer);
+          od.setUint32(0,9,false);
+          out.set(type,4); out.set(data,8);
+          od.setUint32(17, crc32(body), false);
+          return out;
+        }
+        function readPhys(buf){
+          if (!isPng(buf)) return null;
+          var dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+          var off=8;
+          while (off + 12 <= buf.length){
+            var len = dv.getUint32(off,false);
+            var end = off+8+len+4;
+            if (end > buf.length) return null;
+            var t = chunkType(buf, off);
+            if (t==='pHYs' && len===9) {
+              return { x: dv.getUint32(off+8,false), y: dv.getUint32(off+12,false), unit: buf[off+16] };
+            }
+            if (t==='IEND') break;
+            off=end;
+          }
+          return null;
+        }
+        function setDpi(buf){
+          if (!isPng(buf)) return buf;
+          var dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+          var parts = [buf.subarray(0,8)];
+          var phys = buildPhys();
+          var inserted = false;
+          var off=8;
+          while (off + 12 <= buf.length){
+            var len = dv.getUint32(off,false);
+            var end = off+8+len+4;
+            if (end > buf.length) return buf;
+            var t = chunkType(buf, off);
+            if (t !== 'pHYs') parts.push(buf.subarray(off,end));
+            if (t === 'IHDR' && !inserted) { parts.push(phys); inserted = true; }
+            off=end;
+            if (t==='IEND') break;
+          }
+          if (!inserted) parts.splice(1,0,phys);
+          return concat(parts);
+        }
+        function ensureDpi(buf){
+          var fixed = setDpi(buf);
+          var meta = readPhys(fixed);
+          if (!meta || meta.x !== PPM_300 || meta.y !== PPM_300 || meta.unit !== 1) fixed = setDpi(fixed);
+          meta = readPhys(fixed);
+          window.__DTF_LAST_DPI_CHECK = meta;
+          try { console.log('[DPI300] verificado pHYs=', meta && meta.x, meta && meta.y, 'unit=', meta && meta.unit); } catch(_){}
+          return fixed;
+        }
+        function bytesToBase64(bytes){
+          var binary = '';
+          var chunk = 0x8000;
+          for (var i=0;i<bytes.length;i+=chunk) binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+          return btoa(binary);
+        }
+        function dataUrlToBytes(url){
+          var comma = url.indexOf(',');
+          var bin = atob(url.substring(comma+1));
+          var buf = new Uint8Array(bin.length);
+          for (var i=0;i<bin.length;i++) buf[i]=bin.charCodeAt(i);
+          return buf;
+        }
+        function fixDataUrl(url){
+          if (typeof url !== 'string' || url.indexOf('data:image/png') !== 0) return url;
+          try { return 'data:image/png;base64,' + bytesToBase64(ensureDpi(dataUrlToBytes(url))); }
+          catch(e){ console.warn('[DPI300] falha ao regravar data URL', e); return url; }
+        }
+        // Bounding box dos pixels não-transparentes do canvas de origem
+        function getContentBBox(source){
+          try {
+            var sctx = source.getContext && source.getContext('2d');
+            if (!sctx) return null;
+            var W = source.width, H = source.height;
+            var img = sctx.getImageData(0, 0, W, H).data;
+            var minX = W, minY = H, maxX = -1, maxY = -1;
+            for (var y = 0; y < H; y++) {
+              for (var x = 0; x < W; x++) {
+                if (img[(y * W + x) * 4 + 3] > 0) {
+                  if (x < minX) minX = x;
+                  if (x > maxX) maxX = x;
+                  if (y < minY) minY = y;
+                  if (y > maxY) maxY = y;
+                }
+              }
+            }
+            if (maxX < 0) return null;
+            return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+          } catch (e) { return null; }
+        }
+        // Configuração de margem de segurança (acessível via UI)
+        window.__DTF_EXPORT_MARGIN = window.__DTF_EXPORT_MARGIN || { mode: 'auto', value: 8 };
+        function computePaddingPx(bbox){
+          var cfg = window.__DTF_EXPORT_MARGIN || { mode: 'auto', value: 8 };
+          var base = Math.max(bbox.w, bbox.h);
+          if (cfg.mode === 'mm') {
+            // 300 DPI → 1 mm = 300/25.4 px
+            return Math.round((Number(cfg.value) || 0) * 300 / 25.4);
+          }
+          if (cfg.mode === 'percent') {
+            return Math.round(base * (Number(cfg.value) || 0) / 100);
+          }
+          // auto: 8% do maior lado da arte
+          return Math.round(base * 0.08);
+        }
+        function makeSizedCanvas(source, maxW, maxH){
+          var out = document.createElement('canvas');
+          var ctx = out.getContext('2d', { alpha: true });
+          if (!ctx) return source;
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          out.width = maxW;
+          out.height = maxH;
+          ctx.clearRect(0, 0, maxW, maxH);
+
+          // 1) Bounding box: usa recorte manual se definido; senão detecta automaticamente
+          var bbox = null;
+          if (window.__DTF_MANUAL_BBOX) {
+            var m = window.__DTF_MANUAL_BBOX;
+            bbox = { x: Math.max(0, m.x|0), y: Math.max(0, m.y|0),
+                     w: Math.min(source.width - (m.x|0), m.w|0),
+                     h: Math.min(source.height - (m.y|0), m.h|0) };
+            window.__DTF_MANUAL_BBOX = null;
+          }
+          // Sem recorte manual: usa a IMAGEM INTEIRA. Nunca apaga bordas/cantos.
+          if (!bbox || bbox.w <= 0 || bbox.h <= 0) bbox = { x: 0, y: 0, w: source.width, h: source.height };
+
+          // 2) Adicionar margem de segurança ao redor (0 quando o recorte foi manual)
+          var pad = window.__DTF_SKIP_PADDING ? 0 : computePaddingPx(bbox);
+          window.__DTF_SKIP_PADDING = false;
+          var paddedW = bbox.w + pad * 2;
+          var paddedH = bbox.h + pad * 2;
+
+          // 3) Ajustar à folha mantendo proporção, ampliando ou reduzindo sem distorção.
+          var scale = Math.min(maxW / paddedW, maxH / paddedH);
+          var drawW = Math.round(bbox.w * scale);
+          var drawH = Math.round(bbox.h * scale);
+          var totalW = Math.round(paddedW * scale);
+          var totalH = Math.round(paddedH * scale);
+
+          // 4) Centralizar na folha
+          var offX = Math.round((maxW - totalW) / 2 + pad * scale);
+          var offY = Math.round((maxH - totalH) / 2 + pad * scale);
+
+          ctx.drawImage(source, bbox.x, bbox.y, bbox.w, bbox.h, offX, offY, drawW, drawH);
+          return out;
+        }
+        function paperDimensions(format){
+          var spec = PAPER_FORMATS[format];
+          if (!spec) return null;
+          var landscape = window.__DTF_EXPORT_ORIENTATION === 'landscape';
+          return {
+            width: landscape ? spec.heightPx : spec.widthPx,
+            height: landscape ? spec.widthPx : spec.heightPx,
+            widthMm: landscape ? spec.heightMm : spec.widthMm,
+            heightMm: landscape ? spec.widthMm : spec.heightMm
+          };
+        }
+        function visibleBounds(canvas){
+          try {
+            var ctx = canvas.getContext('2d', { willReadFrequently: true });
+            var data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            var x0 = canvas.width, y0 = canvas.height, x1 = -1, y1 = -1;
+            for (var y = 0; y < canvas.height; y++) for (var x = 0; x < canvas.width; x++) {
+              if (data[(y * canvas.width + x) * 4 + 3] === 0) continue;
+              if (x < x0) x0 = x; if (x > x1) x1 = x;
+              if (y < y0) y0 = y; if (y > y1) y1 = y;
+            }
+            return x1 < 0 ? null : { x:x0, y:y0, w:x1-x0+1, h:y1-y0+1 };
+          } catch (e) { return null; }
+        }
+        function makePaperCanvas(source, format){
+          var dims = paperDimensions(format);
+          if (!dims) return source;
+          var out;
+          // O upload já contém EXATAMENTE o enquadramento confirmado (inclusive
+          // zoom e posição). Reprojetar a folha inteira, jamais detectar outro
+          // bounding box aqui: isso apagaria texto, detalhes afastados e o
+          // ajuste feito pela pessoa.
+          var uploaded = window.__DTF_ORIGINAL_CANVAS;
+          if (uploaded && uploaded.width && uploaded.height && window.__DTF_UPLOAD_PAPER === format) {
+            out = document.createElement('canvas');
+            out.width = dims.width; out.height = dims.height;
+            var dest = out.getContext('2d', { alpha: true });
+            dest.imageSmoothingEnabled = true;
+            dest.imageSmoothingQuality = 'high';
+            // O canvas inteiro representa a folha escolhida. Copiá-lo inteiro
+            // conserva cada coordenada confirmada, mesmo quando a retícula deixa
+            // texto claro ou elementos separados com poucos pixels visíveis.
+            dest.drawImage(source, 0, 0, source.width, source.height, 0, 0, dims.width, dims.height);
+          }
+          if (out) {
+            // Já está no tamanho e no enquadramento escolhidos no upload.
+          } else if (source.width === dims.width && source.height === dims.height) {
+            out = document.createElement('canvas');
+            out.width = dims.width; out.height = dims.height;
+            out.getContext('2d', { alpha: true }).drawImage(source, 0, 0);
+          } else {
+            out = makeSizedCanvas(source, dims.width, dims.height);
+          }
+          var valid = out.width === dims.width && out.height === dims.height;
+          window.__DTF_LAST_EXPORT_VALIDATION = { format: format, orientation: window.__DTF_EXPORT_ORIENTATION || 'portrait', width: out.width, height: out.height, dpi: DPI, valid: valid };
+          if (!valid) throw new Error('Dimensão final inválida para ' + format + '.');
+          return out;
+        }
+        function makeA4Canvas(source){ return makePaperCanvas(source, 'A4'); }
+        function makeA3Canvas(source){ return makePaperCanvas(source, 'A3'); }
+        function makeA2Canvas(source){ return makePaperCanvas(source, 'A2'); }
+
+        function normalizeDownloadName(name){
+          var finalName = name || 'DTFlexPro_300dpi.png';
+          var tag = null;
+          if (window.__DTF_PENDING_A4_DOWNLOAD) { tag = '_A4'; window.__DTF_PENDING_A4_DOWNLOAD = false; }
+          else if (window.__DTF_PENDING_A3_DOWNLOAD) { tag = '_A3'; window.__DTF_PENDING_A3_DOWNLOAD = false; }
+          else if (window.__DTF_PENDING_A2_DOWNLOAD) { tag = '_A2'; window.__DTF_PENDING_A2_DOWNLOAD = false; }
+          if (tag) {
+            finalName = finalName.replace(/\.png$/i, '');
+            if (finalName.indexOf(tag) === -1) finalName += tag;
+            if (finalName.indexOf('300dpi') === -1) finalName += '_300dpi';
+            finalName += '.png';
+          }
+          return finalName;
+        }
+        // Pergunta o nome do arquivo antes de salvar (Salvar como...)
+        function askFileName(suggested){
+          var base = suggested || 'DTFlexPro_300dpi.png';
+          try {
+            var ans = window.prompt('Salvar como — nome do arquivo:', base);
+            if (ans === null) return null; // cancelou
+            ans = String(ans).trim();
+            if (!ans) ans = base;
+            if (!/\.png$/i.test(ans)) ans += '.png';
+            return ans.replace(/[\\/:*?"<>|]/g, '-');
+          } catch (e) { return base; }
+        }
+        function fixAnchorSync(a){
+          var name = askFileName(normalizeDownloadName(a.download));
+          if (name === null) return false;
+          a.href = fixDataUrl(a.href);
+          a.download = name;
+          a.setAttribute('data-dpi-fixed', 'true');
+          return true;
+        }
+        var origAnchorClick = HTMLAnchorElement.prototype.click;
+        async function forceFixedPngDownload(a){
+          var name = askFileName(normalizeDownloadName(a.download));
+          if (name === null) return;
+          try {
+            var res = await fetch(a.href, { cache: 'no-store' });
+            var fixed = ensureDpi(new Uint8Array(await res.arrayBuffer()));
+            var url = URL.createObjectURL(new Blob([fixed], { type: 'image/png' }));
+            var dl = document.createElement('a');
+            dl.href = url;
+            dl.download = name;
+            dl.setAttribute('data-dpi-fixed', 'true');
+            document.body.appendChild(dl);
+            origAnchorClick.call(dl);
+            setTimeout(function(){ URL.revokeObjectURL(url); dl.remove(); }, 1500);
+          } catch(e) {
+            a.href = fixDataUrl(a.href);
+            a.download = name;
+            a.setAttribute('data-dpi-fixed', 'true');
+            origAnchorClick.call(a);
+          }
+        }
+        async function rewriteBlob(blob){
+          try {
+            if (!blob || blob.type !== 'image/png') return blob;
+            return new Blob([ensureDpi(new Uint8Array(await blob.arrayBuffer()))], { type: 'image/png' });
+          } catch(e){ return blob; }
+        }
+
+        var origToBlob = HTMLCanvasElement.prototype.toBlob;
+        HTMLCanvasElement.prototype.toBlob = function(cb, type, q){
+          var source = this;
+          if ((!type || type === 'image/png') && window.__flat && source === window.__flat) {
+            source = compositeTextOverlay(source);
+            if (window.__DTF_EXPORT_A4_NEXT) {
+              source = makeA4Canvas(source);
+              window.__DTF_EXPORT_A4_NEXT = false;
+              window.__DTF_PENDING_A4_DOWNLOAD = true;
+            } else if (window.__DTF_EXPORT_A3_NEXT) {
+              source = makeA3Canvas(source);
+              window.__DTF_EXPORT_A3_NEXT = false;
+              window.__DTF_PENDING_A3_DOWNLOAD = true;
+            } else if (window.__DTF_EXPORT_A2_NEXT) {
+              source = makeA2Canvas(source);
+              window.__DTF_EXPORT_A2_NEXT = false;
+              window.__DTF_PENDING_A2_DOWNLOAD = true;
+            }
+          }
+          return origToBlob.call(source, function(b){
+            if (b && (type==='image/png' || !type)) rewriteBlob(b).then(cb); else cb(b);
+          }, type, q);
+        };
+
+        var origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+        HTMLCanvasElement.prototype.toDataURL = function(type){
+          var source = this;
+          if ((!type || type === 'image/png') && window.__flat && source === window.__flat) {
+            source = compositeTextOverlay(source);
+            if (window.__DTF_EXPORT_A4_NEXT) {
+              source = makeA4Canvas(source);
+              window.__DTF_EXPORT_A4_NEXT = false;
+              window.__DTF_PENDING_A4_DOWNLOAD = true;
+            } else if (window.__DTF_EXPORT_A3_NEXT) {
+              source = makeA3Canvas(source);
+              window.__DTF_EXPORT_A3_NEXT = false;
+              window.__DTF_PENDING_A3_DOWNLOAD = true;
+            } else if (window.__DTF_EXPORT_A2_NEXT) {
+              source = makeA2Canvas(source);
+              window.__DTF_EXPORT_A2_NEXT = false;
+              window.__DTF_PENDING_A2_DOWNLOAD = true;
+            }
+          }
+          var url = origToDataURL.apply(source, arguments);
+          if (type && type !== 'image/png') return url;
+          return fixDataUrl(url);
+        };
+
+        HTMLAnchorElement.prototype.click = function(){
+          if (this.download && this.getAttribute('data-dpi-fixed') !== 'true' && typeof this.href === 'string') {
+            if (this.href.indexOf('data:image/png') === 0) {
+              if (!fixAnchorSync(this)) return;
+              return origAnchorClick.apply(this, arguments);
+            }
+            if (this.href.indexOf('blob:') === 0) {
+              forceFixedPngDownload(this);
+              return;
+            }
+          }
+          return origAnchorClick.apply(this, arguments);
+        };
+        document.addEventListener('click', function(e){
+          var a = e.target && e.target.closest ? e.target.closest('a[download]') : null;
+          if (a && a.getAttribute('data-dpi-fixed') !== 'true' && typeof a.href === 'string') {
+            if (a.href.indexOf('data:image/png') === 0) { if (!fixAnchorSync(a)) { e.preventDefault(); e.stopImmediatePropagation(); } return; }
+            if (a.href.indexOf('blob:') === 0) { e.preventDefault(); e.stopImmediatePropagation(); forceFixedPngDownload(a); }
+          }
+        }, true);
+
+        function openManualCropModal(onConfirm){
+          if (!window.__flat) { alert('Gere a arte primeiro.'); return; }
+          var src = window.__flat;
+          var overlay = document.createElement('div');
+          overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;';
+          overlay.innerHTML = ''
+            + '<div style="color:#fff;font:600 14px system-ui;text-align:center;max-width:640px;">Arraste para selecionar a área de corte / redimensionar. Use os presets de proporção para enquadrar. Confirme para baixar.</div>'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;font:600 12px system-ui;color:#fff;align-items:center;">'
+            + '  <span style="opacity:.85;">Proporção:</span>'
+            + '  <button data-ar="free" class="dtf-ar" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#0ea5e9;color:#fff;font-weight:700;cursor:pointer;">Livre</button>'
+            + '  <button data-ar="1:1"  class="dtf-ar" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">1:1</button>'
+            + '  <button data-ar="3:4"  class="dtf-ar" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">3:4</button>'
+            + '  <button data-ar="4:3"  class="dtf-ar" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">4:3</button>'
+            + '  <button data-ar="A4"   class="dtf-ar" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">A4</button>'
+            + '  <button data-ar="A3"   class="dtf-ar" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">A3</button>'
+            + '  <button data-ar="A2"   class="dtf-ar" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">A2</button>'
+            + '</div>'
+            + '<div id="dtf-crop-stage" style="position:relative;background:#222;border:1px solid #444;max-width:90vw;max-height:60vh;overflow:hidden;"></div>'
+            + '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">'
+            + '  <button id="dtf-crop-reset" style="padding:8px 14px;border-radius:8px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">Selecionar tudo</button>'
+            + '  <button id="dtf-crop-cancel" style="padding:8px 14px;border-radius:8px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">Cancelar</button>'
+            + '  <button id="dtf-crop-ok" style="padding:8px 14px;border-radius:8px;border:0;background:#22c55e;color:#062;font-weight:700;cursor:pointer;">Confirmar e baixar</button>'
+            + '</div>';
+          document.body.appendChild(overlay);
+
+          var stage = overlay.querySelector('#dtf-crop-stage');
+          var maxW = Math.min(window.innerWidth * 0.9, 1100);
+          var maxH = Math.min(window.innerHeight * 0.7, 720);
+          var scale = Math.min(maxW / src.width, maxH / src.height, 1);
+          var dispW = Math.round(src.width * scale);
+          var dispH = Math.round(src.height * scale);
+          var preview = document.createElement('canvas');
+          preview.width = dispW; preview.height = dispH;
+          preview.style.cssText = 'display:block;background:#111;';
+          preview.getContext('2d').drawImage(src, 0, 0, dispW, dispH);
+          stage.style.width = dispW + 'px'; stage.style.height = dispH + 'px';
+          stage.appendChild(preview);
+
+          var sel = document.createElement('div');
+          sel.style.cssText = 'position:absolute;border:2px dashed #22c55e;background:rgba(34,197,94,.12);cursor:move;box-sizing:border-box;';
+          stage.appendChild(sel);
+
+          // Inicia com bbox automático se houver, senão tudo
+          var auto = getContentBBox(src);
+          var rect = auto ? { x: auto.x*scale, y: auto.y*scale, w: auto.w*scale, h: auto.h*scale }
+                          : { x: 0, y: 0, w: dispW, h: dispH };
+          function applyRect(){
+            rect.x = Math.max(0, Math.min(rect.x, dispW - 10));
+            rect.y = Math.max(0, Math.min(rect.y, dispH - 10));
+            rect.w = Math.max(10, Math.min(rect.w, dispW - rect.x));
+            rect.h = Math.max(10, Math.min(rect.h, dispH - rect.y));
+            sel.style.left = rect.x + 'px'; sel.style.top = rect.y + 'px';
+            sel.style.width = rect.w + 'px'; sel.style.height = rect.h + 'px';
+          }
+          applyRect();
+
+          // Alças
+          ['nw','ne','sw','se'].forEach(function(pos){
+            var h = document.createElement('div');
+            h.dataset.pos = pos;
+            var corner = {nw:'top:-6px;left:-6px;cursor:nwse-resize;',
+                          ne:'top:-6px;right:-6px;cursor:nesw-resize;',
+                          sw:'bottom:-6px;left:-6px;cursor:nesw-resize;',
+                          se:'bottom:-6px;right:-6px;cursor:nwse-resize;'}[pos];
+            h.style.cssText = 'position:absolute;width:14px;height:14px;background:#22c55e;border:2px solid #fff;border-radius:50%;'+corner;
+            sel.appendChild(h);
+          });
+
+          var drag = null;
+          stage.style.touchAction = 'none';
+          stage.addEventListener('pointerdown', function(e){
+            var r = stage.getBoundingClientRect();
+            var px = e.clientX - r.left, py = e.clientY - r.top;
+            var t = e.target;
+            if (t.dataset && t.dataset.pos) {
+              drag = { mode:'resize', pos:t.dataset.pos, sx:px, sy:py, ox:rect.x, oy:rect.y, ow:rect.w, oh:rect.h };
+            } else if (t === sel) {
+              drag = { mode:'move', sx:px, sy:py, ox:rect.x, oy:rect.y };
+            } else {
+              drag = { mode:'new', sx:px, sy:py };
+              rect = { x:px, y:py, w:1, h:1 }; applyRect();
+            }
+            try { stage.setPointerCapture(e.pointerId); } catch(err) {}
+            e.preventDefault();
+          });
+          window.addEventListener('pointermove', function(e){
+            if (!drag) return;
+            var r = stage.getBoundingClientRect();
+            var px = e.clientX - r.left, py = e.clientY - r.top;
+            var dx = px - drag.sx, dy = py - drag.sy;
+            if (drag.mode === 'move') { rect.x = drag.ox + dx; rect.y = drag.oy + dy; }
+            else if (drag.mode === 'new') {
+              rect.x = Math.min(drag.sx, px); rect.y = Math.min(drag.sy, py);
+              rect.w = Math.abs(dx); rect.h = Math.abs(dy);
+            } else {
+              if (drag.pos.indexOf('e')>-1) rect.w = drag.ow + dx;
+              if (drag.pos.indexOf('s')>-1) rect.h = drag.oh + dy;
+              if (drag.pos.indexOf('w')>-1) { rect.x = drag.ox + dx; rect.w = drag.ow - dx; }
+              if (drag.pos.indexOf('n')>-1) { rect.y = drag.oy + dy; rect.h = drag.oh - dy; }
+            }
+            applyRect();
+            e.preventDefault();
+          });
+          window.addEventListener('pointerup', function(){ drag = null; });
+          window.addEventListener('pointercancel', function(){ drag = null; });
+
+          overlay.querySelector('#dtf-crop-reset').onclick = function(){
+            rect = { x:0, y:0, w:dispW, h:dispH }; applyRect();
+          };
+          overlay.querySelector('#dtf-crop-cancel').onclick = function(){ overlay.remove(); };
+          // Presets de proporção
+          var ar = 0; // 0 = livre; senão w/h
+          function setAR(mode){
+            if (mode === 'free') ar = 0;
+            else if (mode === '1:1') ar = 1;
+            else if (mode === '3:4') ar = 3/4;
+            else if (mode === '4:3') ar = 4/3;
+            else if (mode === 'A4') ar = 2480/3508;
+            else if (mode === 'A3') ar = 3508/4961;
+            else if (mode === 'A2') ar = 4961/7016;
+            overlay.querySelectorAll('.dtf-ar').forEach(function(b){
+              b.style.background = (b.dataset.ar===mode) ? '#0ea5e9' : '#222';
+            });
+            if (ar > 0) {
+              // Ajusta rect atual mantendo centro
+              var cx = rect.x + rect.w/2, cy = rect.y + rect.h/2;
+              var w = rect.w, h = w / ar;
+              if (h > dispH) { h = dispH; w = h * ar; }
+              if (w > dispW) { w = dispW; h = w / ar; }
+              rect = { x: cx - w/2, y: cy - h/2, w: w, h: h };
+              applyRect();
+            }
+          }
+          overlay.querySelectorAll('.dtf-ar').forEach(function(b){
+            b.addEventListener('click', function(){ setAR(b.dataset.ar); });
+          });
+          // Reforça aspect ratio ao redimensionar
+          var origApply = applyRect;
+          applyRect = function(){
+            if (ar > 0 && drag && drag.mode === 'resize') {
+              // Ajusta h a partir de w para manter proporção
+              rect.h = Math.max(10, rect.w / ar);
+            }
+            origApply();
+          };
+
+          overlay.querySelector('#dtf-crop-ok').onclick = function(){
+            var bbox = {
+              x: Math.round(rect.x / scale),
+              y: Math.round(rect.y / scale),
+              w: Math.round(rect.w / scale),
+              h: Math.round(rect.h / scale)
+            };
+            window.__DTF_MANUAL_BBOX = bbox;
+            window.__DTF_SKIP_PADDING = true;
+            overlay.remove();
+            onConfirm();
+          };
+        }
+
+        function installSizeButtons(){
+          var buttons = Array.prototype.slice.call(document.querySelectorAll('button'));
+          var master = buttons.find(function(btn){ return /Exportar Master/i.test(btn.textContent || ''); });
+          if (!master || !master.parentElement) return;
+          // Mantém o botão original de download. A escolha A4/A3 feita no
+          // modal de upload é propagada automaticamente para __DTF_EXPORT_A4_NEXT
+          // / __DTF_EXPORT_A3_NEXT no clique final (ver bloco abaixo).
+          master.style.display = '';
+
+          // Remove botões extras/legacy injetados em versões anteriores.
+          ['dtf-a4-export-btn','dtf-a3-export-btn','dtf-crop-a4-btn','dtf-crop-a3-btn']
+            .forEach(function(id){ var el = document.getElementById(id); if (el) el.remove(); });
+
+          var inputStyle = 'padding:4px 8px;border-radius:6px;border:1px solid #888;background:#fff;color:#111;font-weight:600;';
+
+          // Seletor de margem de recorte (mantido)
+          if (!document.getElementById('dtf-margin-wrap')) {
+            var wrap = document.createElement('div');
+            wrap.id = 'dtf-margin-wrap';
+            wrap.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0;padding:8px 10px;border-radius:8px;background:#f8fafc;border:1px solid #cbd5e1;font:600 12px system-ui;color:#0f172a;';
+            wrap.innerHTML = ''
+              + '<label style="color:#0f172a;">Margem de recorte:</label>'
+              + '<select id="dtf-margin-mode" style="'+inputStyle+'">'
+              + '  <option value="auto">Automática (8%)</option>'
+              + '  <option value="percent">Porcentagem (%)</option>'
+              + '  <option value="mm">Milímetros (mm)</option>'
+              + '</select>'
+              + '<input id="dtf-margin-value" type="number" min="0" step="1" value="8" style="width:80px;'+inputStyle+'display:none;" />'
+              + '<span id="dtf-margin-unit" style="color:#334155;display:none;">%</span>';
+            master.parentElement.insertBefore(wrap, master);
+            var modeSel = wrap.querySelector('#dtf-margin-mode');
+            var valInp = wrap.querySelector('#dtf-margin-value');
+            var unitSpan = wrap.querySelector('#dtf-margin-unit');
+            function syncMargin(){
+              var mode = modeSel.value;
+              window.__DTF_EXPORT_MARGIN = { mode: mode, value: Number(valInp.value) || 0 };
+              if (mode === 'auto') {
+                valInp.style.display = 'none'; unitSpan.style.display = 'none';
+              } else {
+                valInp.style.display = ''; unitSpan.style.display = '';
+                if (mode === 'percent') { unitSpan.textContent = '%'; valInp.value = valInp.value || 8; }
+                else { unitSpan.textContent = 'mm'; valInp.value = valInp.value || 15; }
+                window.__DTF_EXPORT_MARGIN.value = Number(valInp.value) || 0;
+              }
+            }
+            modeSel.addEventListener('change', syncMargin);
+            valInp.addEventListener('input', syncMargin);
+            syncMargin();
+          }
+        }
+
+
+        document.addEventListener('DOMContentLoaded', installSizeButtons);
+        new MutationObserver(installSizeButtons).observe(document.documentElement, { childList: true, subtree: true });
+        window.__DTF_FORCE_300_DPI = { readPhys: readPhys, setDpi: setDpi, ensureDpi: ensureDpi, a4: [A4_WIDTH, A4_HEIGHT], a3: [A3_WIDTH, A3_HEIGHT], a2: [A2_WIDTH, A2_HEIGHT] };
+
+        // ============================================================
+        // RETÍCULA BEN-DAY (aplicada em TODA a imagem, opcional)
+        // Grade regular de pontos sólidos a 45°: o tamanho de cada ponto
+        // vem da cobertura/luminância local. Desligada: nada muda.
+        // ============================================================
+        window.__DTF_BENDAY = false;
+        window.__DTF_BENDAY_SPACING = 10; // px (300 DPI)
+
+        function renderBenDay(src){
+          if (!src || !src.width) return src;
+          var W = src.width, H = src.height;
+          var sctx = src.getContext('2d');
+          var img;
+          try { img = sctx.getImageData(0, 0, W, H); } catch (e) { return src; }
+          var d = img.data;
+          var out = document.createElement('canvas');
+          out.width = W; out.height = H;
+          var o = out.getContext('2d');
+          o.clearRect(0, 0, W, H);
+          var step = Math.max(3, Math.round(window.__DTF_BENDAY_SPACING || 10));
+          var ang = Math.PI / 4;
+          var ca = Math.cos(ang), sa = Math.sin(ang);
+          var diag = Math.ceil(Math.sqrt(W * W + H * H));
+          var half = step / 2;
+          for (var v = -diag; v <= diag; v += step) {
+            for (var u = -diag; u <= diag; u += step) {
+              var cx = u * ca - v * sa + W / 2;
+              var cy = u * sa + v * ca + H / 2;
+              if (cx < -step || cy < -step || cx > W + step || cy > H + step) continue;
+              var x0 = Math.max(0, Math.round(cx - half)), x1 = Math.min(W - 1, Math.round(cx + half));
+              var y0 = Math.max(0, Math.round(cy - half)), y1 = Math.min(H - 1, Math.round(cy + half));
+              if (x1 < x0 || y1 < y0) continue;
+              var r = 0, g = 0, b = 0, a = 0, n = 0;
+              for (var y = y0; y <= y1; y++) {
+                var row = y * W;
+                for (var x = x0; x <= x1; x++) {
+                  var i = (row + x) * 4;
+                  var al = d[i + 3] / 255;
+                  r += d[i] * al; g += d[i + 1] * al; b += d[i + 2] * al; a += al; n++;
+                }
+              }
+              if (!n || a <= 0.001) continue;
+              r = r / a; g = g / a; b = b / a;
+              var cov = a / n;
+              var lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+              var ink = cov * (1 - lum * 0.85);
+              if (ink <= 0.02) continue;
+              var rad = half * Math.sqrt(Math.min(1, ink)) * 1.28;
+              if (rad < 0.35) continue;
+              o.beginPath();
+              o.fillStyle = 'rgb(' + Math.round(r) + ',' + Math.round(g) + ',' + Math.round(b) + ')';
+              o.arc(cx, cy, rad, 0, 6.2832);
+              o.fill();
+            }
+          }
+          return out;
+        }
+
+        // Hook usado na exportação (mantém o nome antigo)
+        function compositeTextOverlay(flat){
+          var out = flat;
+          if (window.__DTF_BENDAY && window.__DTF_BENDAY_LIVE_CANVAS !== flat) {
+            try { out = renderBenDay(flat); } catch (e) { out = flat; }
+          }
+          // Camada nova: base branca adaptativa para TECIDOS COLORIDOS.
+          // Nunca apaga pixel algum — só acrescenta branco por baixo da arte.
+          if (typeof window.__DTF_SMART_APPLY === 'function') {
+            try { out = window.__DTF_SMART_APPLY(out) || out; } catch (e) {}
+          }
+          return out;
+        }
+
+        window.__DTF_RENDER_BENDAY = renderBenDay;
+        window.__DTF_APPLY_BENDAY = compositeTextOverlay;
+
+
+
+
+        // ============================================================
+        // Corte no UPLOAD: abre modal ao subir imagem, permite recortar
+        // livre / 1:1 / 3:4 / 4:3 / A4 / A3 / A2 e substitui o arquivo antes
+        // de entrar no pipeline. A escolha se propaga até o arquivo final.
+        // ============================================================
+        // Marca na TELA PRINCIPAL o preset de tecido conforme a cor escolhida
+        // no recorte (Branca / Preta / Colorida). Tenta várias vezes porque o
+        // React pode demorar um instante para renderizar os botões.
+        window.__DTF_APPLY_SHIRT_PRESET = function(force){
+          var kind = window.__DTF_SHIRT_COLOR || 'black';
+          var want = kind === 'colorida' ? 'colorida' : (kind === 'white' ? 'branca' : 'preta');
+          var label = want === 'colorida' ? 'camisa colorida' : (want === 'branca' ? 'camisa branca' : 'camisa preta');
+          var btns = Array.prototype.slice.call(document.querySelectorAll('button'));
+          for (var i = 0; i < btns.length; i++) {
+            var t = (btns[i].textContent || '').trim().toLowerCase();
+            if (t === label) {
+              var cls = btns[i].className || '';
+              // Camisa colorida: sempre reaplica, pois os parâmetros da retícula
+              // são recalculados a partir da cor real do tecido escolhido.
+              if (want === 'colorida' || force || cls.indexOf('border-indigo-500') === -1) {
+                btns[i].click();
+                try { btns[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(e){}
+              }
+              return true;
+            }
+          }
+          return false;
+        };
+        window.__DTF_ENSURE_SHIRT_PRESET = function(){
+          if (window.__DTF_APPLY_SHIRT_PRESET()) return;
+          var attempts = 0;
+          var id = setInterval(function(){
+            attempts++;
+            if (window.__DTF_APPLY_SHIRT_PRESET() || attempts > 20) clearInterval(id);
+          }, 250);
+        };
+
+        function openUploadCropModal(bitmap, onConfirm, onCancel){
+          var overlay = document.createElement('div');
+          overlay.style.cssText = 'position:fixed;inset:0;background:#080a0d;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:' + (window.innerWidth < 600 ? 'flex-start' : 'safe center') + ';gap:12px;padding:16px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;';
+          overlay.innerHTML = ''
+            + '<div style="color:#fff;font:600 14px system-ui;text-align:center;max-width:640px;">Escolha o tamanho. A arte será ampliada automaticamente sem perder detalhes; se preferir, ajuste o recorte manualmente.</div>'
+            + '<div style="max-width:820px;text-align:center;font:800 13px system-ui;color:#111;background:#f97316;border-radius:8px;padding:10px 14px;border:2px solid #fdba74;">⚠️ ATENÇÃO: a arte NÃO pode ficar muito perto dos cantos. Deixe uma margem de segurança em volta do desenho antes de confirmar o recorte.</div>'
+
+            + '<div style="position:relative;z-index:3;width:min(92vw,430px);padding:11px;border-radius:9px;background:#121418;border:1px solid #262a31;color:#fff;font:600 12px system-ui;box-sizing:border-box;">'
+            + '  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span>Tamanho final</span><span style="font:700 9px monospace;letter-spacing:2px;color:#9ca3af;">300 DPI</span></div>'
+            + '  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
+            + '    <button data-ar="free" class="dtf-ar-up" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#222;color:#fff;font-weight:700;cursor:pointer;">Original</button>'
+            + '    <button data-ar="A3" class="dtf-ar-up" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#5b3f0d;color:#fff;font-weight:700;cursor:pointer;">A3</button>'
+            + '    <button data-ar="A4" class="dtf-ar-up" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#5b3f0d;color:#fff;font-weight:700;cursor:pointer;">A4</button>'
+            + '    <button data-ar="A2" class="dtf-ar-up" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#5b3f0d;color:#fff;font-weight:700;cursor:pointer;">A2</button>'
+            + '    <span style="width:1px;height:25px;background:#333;margin:0 2px;"></span>'
+            + '    <button id="dtf-frame-minus" type="button" aria-label="Reduzir imagem" title="Reduzir imagem" style="width:32px;height:30px;border-radius:6px;border:1px solid #444;background:#202329;color:#fff;font-size:20px;line-height:1;cursor:pointer;">−</button>'
+            + '    <span id="dtf-frame-zoom" style="min-width:42px;text-align:center;color:#facc15;font:700 11px monospace;">100%</span>'
+            + '    <button id="dtf-frame-plus" type="button" aria-label="Ampliar imagem" title="Ampliar imagem" style="width:32px;height:30px;border-radius:6px;border:1px solid #444;background:#202329;color:#fff;font-size:18px;line-height:1;cursor:pointer;">+</button>'
+            + '  </div>'
+            + '  <div style="display:flex;gap:6px;margin-top:9px;">'
+            + '    <button id="dtf-fit-smart" type="button" style="flex:1;padding:8px;border-radius:6px;border:1px solid #22c55e;background:#166534;color:#fff;font-weight:700;cursor:pointer;">Ajustar à área · sem corte</button>'
+            + '    <button id="dtf-fit-fill" type="button" style="flex:1;padding:8px;border-radius:6px;border:1px solid #444;background:#222;color:#fff;font-weight:700;cursor:pointer;">Preencher · recorte manual</button>'
+            + '  </div>'
+            + '  <div id="dtf-move-controls" style="display:flex;gap:6px;margin-top:9px;">'
+            + '    <button id="dtf-move-art" type="button" aria-pressed="false" style="flex:1;padding:8px;border-radius:6px;border:1px solid #444;background:#222;color:#fff;font-weight:700;cursor:pointer;">Mover arte manualmente</button>'
+            + '    <button id="dtf-center-art" type="button" style="padding:8px;border-radius:6px;border:1px solid #444;background:#222;color:#fff;font-weight:700;cursor:pointer;">Centralizar</button>'
+            + '  </div>'
+            + '  <div style="display:flex;gap:6px;margin-top:9px;">'
+            + '    <button data-orientation="portrait" class="dtf-orientation" style="flex:1;padding:7px;border-radius:6px;border:1px solid #22c55e;background:#166534;color:#fff;font-weight:700;cursor:pointer;">Retrato</button>'
+            + '    <button data-orientation="landscape" class="dtf-orientation" style="flex:1;padding:7px;border-radius:6px;border:1px solid #444;background:#222;color:#fff;font-weight:700;cursor:pointer;">Paisagem</button>'
+            + '  </div>'
+            + '  <div id="dtf-final-summary" style="display:none;margin-top:9px;padding:9px;border-radius:6px;background:#080a0d;border:1px solid #333;color:#e5e7eb;font:600 11px system-ui;line-height:1.6;"></div>'
+            + '</div>'
+            + '<div style="display:flex;align-items:center;justify-content:center;width:90vw;max-width:1100px;padding:12px;box-sizing:border-box;"><canvas id="dtf-smart-preview" aria-label="Prévia da arte inteira no formato escolhido" style="display:none;max-width:100%;max-height:45vh;border:2px solid #22c55e;background-color:#30343b;background-image:linear-gradient(45deg,#3a3f46 25%,transparent 25%),linear-gradient(-45deg,#3a3f46 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#3a3f46 75%),linear-gradient(-45deg,transparent 75%,#3a3f46 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;"></canvas><div id="dtf-upcrop-stage" style="position:relative;background:#222;border:1px solid #444;overflow:visible;margin:0 auto;"></div></div>'
+            + '<div style="position:relative;z-index:3;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;font:600 12px system-ui;color:#fff;align-items:center;max-width:820px;">'
+            + '  <span style="opacity:.85;width:100%;text-align:center;">Escolha o tecido. Branco e colorido usam Halftone Universal e preservam integralmente o PNG transparente.</span>'
+            + '  <button data-hex="#000000" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#000;color:#fff;font-weight:600;cursor:pointer;">Preto</button>'
+            + '  <button data-hex="#FFFFFF" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#fff;color:#111;font-weight:600;cursor:pointer;">Branco</button>'
+            + '  <button data-hex="#DC2626" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#DC2626;color:#fff;font-weight:600;cursor:pointer;">Vermelho</button>'
+            + '  <button data-hex="#1D4ED8" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#1D4ED8;color:#fff;font-weight:600;cursor:pointer;">Azul</button>'
+            + '  <button data-hex="#15803D" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#15803D;color:#fff;font-weight:600;cursor:pointer;">Verde</button>'
+            + '  <button data-hex="#FACC15" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#FACC15;color:#111;font-weight:600;cursor:pointer;">Amarelo</button>'
+            + '  <button data-hex="#EA580C" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#EA580C;color:#fff;font-weight:600;cursor:pointer;">Laranja</button>'
+            + '  <button data-hex="#EC4899" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#EC4899;color:#fff;font-weight:600;cursor:pointer;">Rosa</button>'
+            + '  <button data-hex="#7C3AED" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#7C3AED;color:#fff;font-weight:600;cursor:pointer;">Roxo</button>'
+            + '  <button data-hex="#6B7280" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#6B7280;color:#fff;font-weight:600;cursor:pointer;">Cinza</button>'
+            + '  <button data-hex="#78350F" class="dtf-shirt" style="padding:6px 10px;border-radius:6px;border:1px solid #888;background:#78350F;color:#fff;font-weight:600;cursor:pointer;">Marrom</button>'
+            + '  <input id="dtf-shirt-color" type="color" value="#ff0000" style="width:38px;height:32px;border:1px solid #888;border-radius:6px;background:#222;cursor:pointer;" title="Cor personalizada" />'
+            + '</div>'
+            + '<div id="dtf-colorida-msg" style="display:none;max-width:820px;text-align:center;font:800 13px system-ui;color:#111;background:#facc15;border-radius:8px;padding:12px 16px;border:3px solid #eab308;">HALFTONE UNIVERSAL — TECIDOS BRANCOS E COLORIDOS: somente PNG transparente. Nenhuma cor é removida; o Alpha original é preservado e todos os pixels visíveis recebem somente a retícula.</div>'
+            + '<div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center;font:600 12px system-ui;color:#fff;max-width:820px;">'
+            + '  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input id="dtf-rmbg" type="checkbox" checked style="width:16px;height:16px;" /> Remover fundo (só o conectado às bordas)</label>'
+            + '  <span style="opacity:.85;">Tamanho (300 DPI):</span>'
+            + '  <label style="display:flex;align-items:center;gap:4px;">L <input id="dtf-size-w" type="number" min="1" step="0.1" style="width:70px;padding:4px;border-radius:5px;border:1px solid #888;background:#111;color:#fff;" /> cm</label>'
+            + '  <label style="display:flex;align-items:center;gap:4px;">A <input id="dtf-size-h" type="number" min="1" step="0.1" style="width:70px;padding:4px;border-radius:5px;border:1px solid #888;background:#111;color:#fff;" /> cm</label>'
+            + '  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input id="dtf-size-lock" type="checkbox" checked style="width:16px;height:16px;" /> manter proporção</label>'
+            + '  <span id="dtf-size-px" style="opacity:.7;"></span>'
+            + '</div>'
+
+
+
+
+            + '<div style="position:relative;z-index:3;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">'
+            + '  <button id="dtf-upcrop-reset" style="padding:8px 14px;border-radius:8px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">Selecionar tudo</button>'
+            + '  <button id="dtf-upcrop-skip"  style="padding:8px 14px;border-radius:8px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">Usar imagem original</button>'
+            + '  <button id="dtf-upcrop-cancel" style="padding:8px 14px;border-radius:8px;border:1px solid #888;background:#222;color:#fff;font-weight:600;cursor:pointer;">Cancelar</button>'
+            + '  <button id="dtf-upcrop-ok"     style="padding:8px 14px;border-radius:8px;border:0;background:#22c55e;color:#062;font-weight:700;cursor:pointer;">Aplicar tamanho e salvar arte</button>'
+            + '</div>';
+
+          document.body.appendChild(overlay);
+
+          var stage = overlay.querySelector('#dtf-upcrop-stage');
+          var maxW = Math.min(window.innerWidth * 0.9, 1100);
+          var maxH = Math.min(window.innerHeight * 0.5, 560);
+          var scale = Math.min(maxW / bitmap.width, maxH / bitmap.height, 1);
+          var dispW = Math.max(20, Math.round(bitmap.width * scale));
+          var dispH = Math.max(20, Math.round(bitmap.height * scale));
+          // Cópia editável da imagem (usada pelo seletor de cor específica)
+          var work = document.createElement('canvas');
+          work.width = bitmap.width; work.height = bitmap.height;
+          work.getContext('2d', { willReadFrequently: true }).drawImage(bitmap, 0, 0);
+          // Inclui qualquer pixel visível, inclusive sombras translúcidas e detalhes finos.
+          // Se não houver Alpha (JPG), toda a imagem é considerada arte.
+          function artBounds(){
+            var data = work.getContext('2d').getImageData(0, 0, work.width, work.height).data;
+            var x0 = work.width, y0 = work.height, x1 = -1, y1 = -1;
+            for (var y = 0; y < work.height; y++) for (var x = 0; x < work.width; x++) {
+              if (data[(y * work.width + x) * 4 + 3] === 0) continue;
+              if (x < x0) x0 = x; if (x > x1) x1 = x;
+              if (y < y0) y0 = y; if (y > y1) y1 = y;
+            }
+            return x1 < 0 ? null : { x:x0, y:y0, w:x1-x0+1, h:y1-y0+1 };
+          }
+          var bounds = artBounds();
+          var fitMode = 'smart';
+          var orientationManual = false;
+          var smartPreview = overlay.querySelector('#dtf-smart-preview');
+          var smartZoom = 1;
+          // Deslocamento relativo à folha, igual na prévia e no PNG de 300 DPI.
+          var smartOffsetX = 0, smartOffsetY = 0, moveArt = false;
+          function smartGeometry(width, height){
+            if (!bounds) return null;
+            var margin = Math.max(1, Math.round(Math.min(width, height) * 0.03));
+            var factor = Math.min((width - margin * 2) / bounds.w, (height - margin * 2) / bounds.h) * smartZoom;
+            var w = bounds.w * factor, h = bounds.h * factor;
+            return { x:(width-w)/2 + smartOffsetX * width, y:(height-h)/2 + smartOffsetY * height, w:w, h:h };
+          }
+          function renderSmart(canvas){
+            var ctx = canvas.getContext('2d', { alpha:true });
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            var g = smartGeometry(canvas.width, canvas.height);
+            if (g) {
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.drawImage(work, bounds.x, bounds.y, bounds.w, bounds.h, g.x, g.y, g.w, g.h);
+            }
+            return g;
+          }
+          var preview = document.createElement('canvas');
+          preview.width = dispW; preview.height = dispH;
+          preview.style.cssText = 'display:block;background:#111;';
+          preview.getContext('2d').drawImage(work, 0, 0, dispW, dispH);
+          stage.style.width = dispW + 'px'; stage.style.height = dispH + 'px';
+          stage.appendChild(preview);
+
+          var sel = document.createElement('div');
+          sel.style.cssText = 'position:absolute;border:3px solid #22c55e;background:transparent;cursor:move;box-sizing:border-box;box-shadow:0 0 0 2000px rgba(0,0,0,.62);';
+          stage.appendChild(sel);
+
+          var rect = { x: 0, y: 0, w: dispW, h: dispH };
+          var ar = 0;
+          var frameZoom = 1;
+          var orientation = 'portrait';
+          var moveButton = overlay.querySelector('#dtf-move-art');
+          function updateMoveControl(){
+            moveButton.setAttribute('aria-pressed', String(moveArt));
+            moveButton.style.background = moveArt ? '#166534' : '#222';
+            moveButton.style.borderColor = moveArt ? '#22c55e' : '#444';
+            smartPreview.style.cursor = moveArt ? 'grab' : 'default';
+            smartPreview.style.touchAction = moveArt ? 'none' : 'auto';
+          }
+          moveButton.onclick = function(){ moveArt = !moveArt; updateMoveControl(); };
+          overlay.querySelector('#dtf-center-art').onclick = function(){
+            smartOffsetX = 0; smartOffsetY = 0;
+            if (smartPreview.style.display !== 'none') renderSmart(smartPreview);
+            syncFinalSummary();
+          };
+          var movePointer = null;
+          smartPreview.addEventListener('pointerdown', function(e){
+            if (!moveArt || !window.__DTF_UPLOAD_PAPER || !bounds) return;
+            movePointer = { id:e.pointerId, x:e.clientX, y:e.clientY, ox:smartOffsetX, oy:smartOffsetY };
+            smartPreview.setPointerCapture(e.pointerId);
+            smartPreview.style.cursor = 'grabbing';
+            e.preventDefault();
+          });
+          smartPreview.addEventListener('pointermove', function(e){
+            if (!movePointer || movePointer.id !== e.pointerId) return;
+            var r = smartPreview.getBoundingClientRect();
+            // Restar a borda para converter o movimento ao espaço útil da folha.
+            var width = r.width - 4, height = r.height - 4;
+            if (width <= 0 || height <= 0) return;
+            smartOffsetX = Math.max(-1, Math.min(1, movePointer.ox + (e.clientX - movePointer.x) / width));
+            smartOffsetY = Math.max(-1, Math.min(1, movePointer.oy + (e.clientY - movePointer.y) / height));
+            renderSmart(smartPreview);
+            syncFinalSummary();
+            e.preventDefault();
+          });
+          function endMove(e){
+            if (!movePointer || movePointer.id !== e.pointerId) return;
+            movePointer = null;
+            smartPreview.style.cursor = moveArt ? 'grab' : 'default';
+          }
+          smartPreview.addEventListener('pointerup', endMove);
+          smartPreview.addEventListener('pointercancel', endMove);
+          updateMoveControl();
+          function updateFitMode(){
+            var smart = fitMode === 'smart' && !!window.__DTF_UPLOAD_PAPER;
+            stage.style.display = smart ? 'none' : 'block';
+            smartPreview.style.display = smart ? 'block' : 'none';
+            overlay.querySelector('#dtf-fit-smart').style.background = fitMode === 'smart' ? '#166534' : '#222';
+            overlay.querySelector('#dtf-fit-fill').style.background = fitMode === 'fill' ? '#166534' : '#222';
+            overlay.querySelector('#dtf-frame-minus').disabled = false;
+            overlay.querySelector('#dtf-frame-plus').disabled = false;
+            overlay.querySelector('#dtf-upcrop-reset').style.display = smart ? 'none' : '';
+            overlay.querySelector('#dtf-move-controls').style.display = smart ? 'flex' : 'none';
+            if (smart) {
+              var dims = paperDimensions(window.__DTF_UPLOAD_PAPER);
+              var factor = Math.min(480 / dims.width, Math.max(180, window.innerHeight * 0.42) / dims.height);
+              smartPreview.width = Math.max(1, Math.round(dims.width * factor));
+              smartPreview.height = Math.max(1, Math.round(dims.height * factor));
+              renderSmart(smartPreview);
+            }
+            overlay.querySelector('#dtf-frame-zoom').textContent = Math.round((smart ? smartZoom : frameZoom) * 100) + '%';
+            syncFinalSummary();
+          }
+          overlay.querySelector('#dtf-fit-smart').onclick = function(){ fitMode = 'smart'; updateFitMode(); };
+          overlay.querySelector('#dtf-fit-fill').onclick = function(){ fitMode = 'fill'; updateFitMode(); };
+          function applyRect(){
+            if (ar > 0 && drag && drag.mode === 'resize') {
+              rect.h = Math.max(10, rect.w / ar);
+            }
+            // Em formatos de papel o quadro sempre fica dentro da imagem.
+            // Assim, o arquivo final é preenchido exatamente pelo recorte visto,
+            // sem margens inesperadas e sem distorcer a arte.
+            if (ar > 0) {
+              var fitInside = Math.min(1, dispW / rect.w, dispH / rect.h);
+              rect.w *= fitInside; rect.h *= fitInside;
+              rect.x = Math.max(0, Math.min(rect.x, dispW - rect.w));
+              rect.y = Math.max(0, Math.min(rect.y, dispH - rect.h));
+            } else {
+              rect.w = Math.max(10, Math.min(rect.w, dispW));
+              rect.h = Math.max(10, Math.min(rect.h, dispH));
+              rect.x = Math.max(0, Math.min(rect.x, dispW - rect.w));
+              rect.y = Math.max(0, Math.min(rect.y, dispH - rect.h));
+            }
+            sel.style.left = rect.x + 'px'; sel.style.top = rect.y + 'px';
+            sel.style.width = rect.w + 'px'; sel.style.height = rect.h + 'px';
+            if (typeof onRectChange === 'function') onRectChange();
+          }
+          var onRectChange = null;
+
+          ['nw','ne','sw','se'].forEach(function(pos){
+            var h = document.createElement('div');
+            h.dataset.pos = pos;
+            var corner = {nw:'top:-6px;left:-6px;cursor:nwse-resize;',
+                          ne:'top:-6px;right:-6px;cursor:nesw-resize;',
+                          sw:'bottom:-6px;left:-6px;cursor:nesw-resize;',
+                          se:'bottom:-6px;right:-6px;cursor:nwse-resize;'}[pos];
+            h.setAttribute('aria-label', 'Ajustar canto ' + pos.toUpperCase());
+            h.title = 'Arraste para ajustar este canto';
+            h.style.cssText = 'position:absolute;width:22px;height:22px;background:#22c55e;border:3px solid #fff;border-radius:50%;touch-action:none;box-shadow:0 0 0 2px rgba(0,0,0,.45);'+corner.replace(/-6px/g,'-11px');
+            sel.appendChild(h);
+          });
+
+          var drag = null;
+          stage.style.touchAction = 'none';
+          stage.addEventListener('pointerdown', function(e){
+            var r = stage.getBoundingClientRect();
+            var px = e.clientX - r.left, py = e.clientY - r.top;
+            
+            var t = e.target;
+            if (t.dataset && t.dataset.pos) {
+              drag = { mode:'resize', pos:t.dataset.pos, sx:px, sy:py, ox:rect.x, oy:rect.y, ow:rect.w, oh:rect.h };
+            } else if (t === sel) {
+              drag = { mode:'move', sx:px, sy:py, ox:rect.x, oy:rect.y };
+            } else {
+              drag = { mode:'new', sx:px, sy:py };
+              rect = { x:px, y:py, w:1, h:1 }; applyRect();
+            }
+            try { stage.setPointerCapture(e.pointerId); } catch(err) {}
+            e.preventDefault();
+          });
+          window.addEventListener('pointermove', function(e){
+            if (!drag) return;
+            var r = stage.getBoundingClientRect();
+            var px = e.clientX - r.left, py = e.clientY - r.top;
+            var dx = px - drag.sx, dy = py - drag.sy;
+            if (drag.mode === 'move') { rect.x = drag.ox + dx; rect.y = drag.oy + dy; }
+            else if (drag.mode === 'new') {
+              rect.x = Math.min(drag.sx, px); rect.y = Math.min(drag.sy, py);
+              rect.w = Math.abs(dx); rect.h = Math.abs(dy);
+            } else {
+              var anchorX = drag.pos.indexOf('w') > -1 ? drag.ox + drag.ow : drag.ox;
+              var anchorY = drag.pos.indexOf('n') > -1 ? drag.oy + drag.oh : drag.oy;
+              var movingX = drag.pos.indexOf('w') > -1 ? drag.ox + dx : drag.ox + drag.ow + dx;
+              var movingY = drag.pos.indexOf('n') > -1 ? drag.oy + dy : drag.oy + drag.oh + dy;
+              var nextW = Math.max(10, Math.abs(movingX - anchorX));
+              var nextH = Math.max(10, Math.abs(movingY - anchorY));
+              if (ar > 0) {
+                if (nextW / nextH > ar) nextH = nextW / ar;
+                else nextW = nextH * ar;
+              }
+              rect.w = nextW; rect.h = nextH;
+              rect.x = drag.pos.indexOf('w') > -1 ? anchorX - nextW : anchorX;
+              rect.y = drag.pos.indexOf('n') > -1 ? anchorY - nextH : anchorY;
+            }
+            applyRect();
+            e.preventDefault();
+          });
+          window.addEventListener('pointerup', function(){ drag = null; });
+          window.addEventListener('pointercancel', function(){ drag = null; });
+
+          function setAR(mode){
+            var selectedFormat = mode === 'A2' || mode === 'A3' || mode === 'A4' ? mode : null;
+            if (selectedFormat && bounds && !orientationManual) {
+              orientation = bounds.w > bounds.h * 1.12 ? 'landscape' : 'portrait';
+              overlay.querySelectorAll('.dtf-orientation').forEach(function(o){
+                var active = o.dataset.orientation === orientation;
+                o.style.background = active ? '#166534' : '#222';
+                o.style.borderColor = active ? '#22c55e' : '#444';
+              });
+              window.__DTF_EXPORT_ORIENTATION = orientation;
+            }
+            if (mode === 'free') ar = 0;
+            else if (mode === '1:1') ar = 1;
+            else if (mode === '3:4') ar = 3/4;
+            else if (mode === '4:3') ar = 4/3;
+            else if (selectedFormat) {
+              var selectedDims = paperDimensions(selectedFormat);
+              ar = selectedDims.width / selectedDims.height;
+            }
+            overlay.querySelectorAll('.dtf-ar-up').forEach(function(b){
+              var isFree = b.dataset.ar === 'free';
+              var isPaper = b.dataset.ar === 'A4' || b.dataset.ar === 'A3' || b.dataset.ar === 'A2';
+              if (b.dataset.ar === mode) b.style.background = isPaper ? '#f59e0b' : '#0ea5e9';
+              else b.style.background = isPaper ? '#5b3f0d' : '#222';
+            });
+            window.__DTF_UPLOAD_PAPER = (mode === 'A4' || mode === 'A3' || mode === 'A2') ? mode : null;
+            window.__DTF_EXPORT_ORIENTATION = orientation;
+            if (ar > 0) {
+              // Preenche a proporção escolhida com um recorte central inicial.
+              // A pessoa pode mover, ampliar ou reduzir o quadro antes de salvar.
+              var w, h;
+              if (dispW / dispH > ar) { h = dispH; w = h * ar; }
+              else { w = dispW; h = w / ar; }
+              rect = { x: (dispW - w) / 2, y: (dispH - h) / 2, w: w, h: h };
+              applyRect();
+            } else {
+              rect = { x: 0, y: 0, w: dispW, h: dispH };
+              applyRect();
+            }
+            frameZoom = 1;
+            smartZoom = 1;
+            smartOffsetX = 0;
+            smartOffsetY = 0;
+            var zoomLabel = overlay.querySelector('#dtf-frame-zoom');
+            if (zoomLabel) zoomLabel.textContent = '100%';
+            updateFitMode();
+          }
+          overlay.querySelectorAll('.dtf-ar-up').forEach(function(b){
+            b.addEventListener('click', function(){
+              try { sizeManual = false; } catch(e){}
+              setAR(b.dataset.ar);
+            });
+          });
+          function syncFinalSummary(){
+            var summary = overlay.querySelector('#dtf-final-summary');
+            var format = window.__DTF_UPLOAD_PAPER;
+            if (!summary || !format) { if (summary) summary.style.display = 'none'; return; }
+            var dims = paperDimensions(format);
+            summary.style.display = 'block';
+            summary.innerHTML = '<strong>Formato selecionado: ' + format + ' — ' + (orientation === 'landscape' ? 'Paisagem' : 'Retrato') + '</strong><br>'
+              + 'Dimensão física: ' + String(dims.widthMm / 10).replace('.', ',') + ' × ' + String(dims.heightMm / 10).replace('.', ',') + ' cm (' + dims.widthMm + ' × ' + dims.heightMm + ' mm)<br>'
+              + 'Resolução: 300 DPI<br>Dimensão final: ' + dims.width + ' × ' + dims.height + ' px';
+            if (fitMode === 'smart') {
+              var g = smartGeometry(dims.width, dims.height);
+              summary.innerHTML += g ? '<br>Arte: ' + (g.w / 300 * 2.54).toFixed(1).replace('.', ',') + ' × ' + (g.h / 300 * 2.54).toFixed(1).replace('.', ',') + ' cm'
+                + '<br>Posição X/Y: ' + (g.x / 300 * 2.54).toFixed(1).replace('.', ',') + ' / ' + (g.y / 300 * 2.54).toFixed(1).replace('.', ',') + ' cm<br>Modo: ajuste automático sem corte'
+                : '<br>Nenhum pixel visível encontrado nesta imagem.';
+            } else summary.innerHTML += '<br>Modo: recorte manual';
+            inW.value = (dims.widthMm / 10).toFixed(1);
+            inH.value = (dims.heightMm / 10).toFixed(1);
+            syncPxLabel();
+          }
+          overlay.querySelectorAll('.dtf-orientation').forEach(function(b){
+            b.addEventListener('click', function(){
+              orientation = b.dataset.orientation;
+              orientationManual = true;
+              window.__DTF_EXPORT_ORIENTATION = orientation;
+              overlay.querySelectorAll('.dtf-orientation').forEach(function(o){
+                var active = o.dataset.orientation === orientation;
+                o.style.background = active ? '#166534' : '#222';
+                o.style.borderColor = active ? '#22c55e' : '#444';
+              });
+              if (window.__DTF_UPLOAD_PAPER) setAR(window.__DTF_UPLOAD_PAPER);
+            });
+          });
+          applyRect();
+
+          function changeFrameZoom(multiplier){
+            if (fitMode === 'smart' && window.__DTF_UPLOAD_PAPER) {
+              smartZoom = Math.max(0.5, Math.min(3, smartZoom * multiplier));
+              renderSmart(smartPreview);
+              overlay.querySelector('#dtf-frame-zoom').textContent = Math.round(smartZoom * 100) + '%';
+              syncFinalSummary();
+              return;
+            }
+            var next = Math.max(0.5, Math.min(3, frameZoom * multiplier));
+            if (Math.abs(next - frameZoom) < 0.001) return;
+            var cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+            var ratio = frameZoom / next;
+            rect.w *= ratio; rect.h *= ratio;
+            rect.x = cx - rect.w / 2; rect.y = cy - rect.h / 2;
+            frameZoom = next;
+            applyRect();
+            var zoomLabel = overlay.querySelector('#dtf-frame-zoom');
+            if (zoomLabel) zoomLabel.textContent = Math.round(frameZoom * 100) + '%';
+          }
+          overlay.querySelector('#dtf-frame-minus').onclick = function(){ changeFrameZoom(1 / 1.12); };
+          overlay.querySelector('#dtf-frame-plus').onclick = function(){ changeFrameZoom(1.12); };
+
+          overlay.querySelector('#dtf-upcrop-reset').onclick = function(){
+            if (window.__DTF_UPLOAD_PAPER) setAR(window.__DTF_UPLOAD_PAPER);
+            else { rect = { x:0, y:0, w:dispW, h:dispH }; applyRect(); }
+          };
+          overlay.querySelector('#dtf-upcrop-cancel').onclick = function(){
+            overlay.remove(); if (onCancel) onCancel();
+          };
+          overlay.querySelector('#dtf-upcrop-skip').onclick = function(){
+            overlay.remove();
+            window.__DTF_ENSURE_SHIRT_PRESET && window.__DTF_ENSURE_SHIRT_PRESET();
+            onConfirm(null, null);
+          };
+
+          // ------------------------------------------------------------------
+          // Cor da camiseta: SOMENTE preview + parâmetro de retícula.
+          // Nunca é usada como critério de remoção de fundo.
+          // ------------------------------------------------------------------
+          var shirtHex = '#000000';
+          window.__DTF_SHIRT_HEX = shirtHex;
+          var colorPicker = overlay.querySelector('#dtf-shirt-color');
+
+          function warnUniversalNeedsPng(){
+            alert('Camisas brancas e coloridas aceitam somente imagem PNG. Envie sua arte em PNG com fundo transparente para preservar todas as cores e aplicar somente a retícula.');
+          }
+
+          function isColoredHex(hex){
+            var h = hex.replace('#',''); if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+            var lum = parseInt(h.substr(0,2),16)*0.299 + parseInt(h.substr(2,2),16)*0.587 + parseInt(h.substr(4,2),16)*0.114;
+            return lum >= 30 && lum <= 235;
+          }
+
+          function applyShirtPreview(hex){
+            shirtHex = hex;
+            window.__DTF_SHIRT_HEX = hex;
+            var lum = (function(){
+              var h = hex.replace('#',''); if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+              return parseInt(h.substr(0,2),16)*0.299 + parseInt(h.substr(2,2),16)*0.587 + parseInt(h.substr(4,2),16)*0.114;
+            })();
+            // Simulação da camisa: a arte aparece sobre a cor escolhida.
+            // Só trata como preto/branco cores muito próximas do extremo;
+            // todo o resto (vermelho, azul, amarelo, cinza, etc.) é "colorida".
+            window.__DTF_SHIRT_COLOR = lum < 30 ? 'black' : (lum > 235 ? 'white' : 'colorida');
+            // Branco e colorido usam somente o Alpha já existente no PNG.
+            // Não há remoção, segmentação, knockout ou descarte por cor.
+            var isUniversal = window.__DTF_SHIRT_COLOR === 'colorida' || window.__DTF_SHIRT_COLOR === 'white';
+            var msgEl = overlay.querySelector('#dtf-colorida-msg');
+            var rmbgEl = overlay.querySelector('#dtf-rmbg');
+            if (msgEl) msgEl.style.display = isUniversal ? 'block' : 'none';
+            if (rmbgEl) {
+              rmbgEl.disabled = isUniversal;
+              rmbgEl.checked = !isUniversal;
+              var label = rmbgEl.closest('label');
+              if (label) label.style.display = isUniversal ? 'none' : 'flex';
+            }
+
+            stage.style.background = hex;
+            preview.style.background = hex;
+          }
+          overlay.querySelectorAll('.dtf-shirt').forEach(function(b){
+            b.addEventListener('click', function(ev){
+              ev.preventDefault();
+              if (b.dataset.hex !== '#000000' && !window.__DTF_CURRENT_UPLOAD_IS_PNG) {
+                warnUniversalNeedsPng();
+                return;
+              }
+              overlay.querySelectorAll('.dtf-shirt').forEach(function(o){ o.style.outline = ''; o.style.transform = ''; });
+              b.style.outline = '3px solid #22c55e';
+              b.style.transform = 'scale(1.05)';
+              applyShirtPreview(b.dataset.hex);
+              if (colorPicker) colorPicker.value = b.dataset.hex;
+            });
+          });
+          if (colorPicker) {
+            colorPicker.addEventListener('input', function(){
+              if (!window.__DTF_CURRENT_UPLOAD_IS_PNG) {
+                warnUniversalNeedsPng();
+                colorPicker.value = '#000000';
+                applyShirtPreview('#000000');
+                return;
+              }
+              overlay.querySelectorAll('.dtf-shirt').forEach(function(o){ o.style.outline = ''; o.style.transform = ''; });
+              applyShirtPreview(colorPicker.value);
+            });
+          }
+          applyShirtPreview('#000000');
+
+          // ------------------------------------------------------------------
+          // Painel de tamanho em cm, sempre 300 DPI (px = cm / 2.54 * 300).
+          // ------------------------------------------------------------------
+          var DPI = 300;
+          var inW = overlay.querySelector('#dtf-size-w');
+          var inH = overlay.querySelector('#dtf-size-h');
+          var lockEl = overlay.querySelector('#dtf-size-lock');
+          var pxLabel = overlay.querySelector('#dtf-size-px');
+          function cmToPx(cm){ return Math.max(1, Math.round(cm / 2.54 * DPI)); }
+          function currentAR(){ return (rect.w / rect.h) || (bitmap.width / bitmap.height); }
+          function syncPxLabel(){
+            var w = parseFloat(inW.value), h = parseFloat(inH.value);
+            if (!(w > 0) || !(h > 0)) { pxLabel.textContent = 'tamanho original • 300 DPI'; return; }
+            pxLabel.textContent = cmToPx(w) + ' x ' + cmToPx(h) + ' px @ 300 DPI';
+          }
+          var sizeManual = false;
+          function syncSizeFromRect(){
+            if (window.__DTF_UPLOAD_PAPER) { syncFinalSummary(); return; }
+            if (sizeManual) return;
+            var wPx = Math.max(1, rect.w / scale), hPx = Math.max(1, rect.h / scale);
+            inW.value = (wPx / DPI * 2.54).toFixed(1);
+            inH.value = (hPx / DPI * 2.54).toFixed(1);
+            syncPxLabel();
+          }
+          inW.addEventListener('input', function(){
+            sizeManual = true;
+            if (lockEl.checked && parseFloat(inW.value) > 0) inH.value = (parseFloat(inW.value) / currentAR()).toFixed(1);
+            syncPxLabel();
+          });
+          inH.addEventListener('input', function(){
+            sizeManual = true;
+            if (lockEl.checked && parseFloat(inH.value) > 0) inW.value = (parseFloat(inH.value) * currentAR()).toFixed(1);
+            syncPxLabel();
+          });
+          onRectChange = syncSizeFromRect;
+          syncSizeFromRect();
+
+          // ------------------------------------------------------------------
+          // SEGMENTAÇÃO DE FUNDO POR CONECTIVIDADE COM AS BORDAS.
+          // Não existe chroma key: preto, branco, azul ou qualquer cor interna
+          // (olhos, boca, dentes, cabelo, óculos, correntes, contornos, sombras)
+          // é preservado porque não é alcançável a partir da borda da imagem.
+          // O crescimento para em qualquer fronteira de contraste (borda de arte).
+          // ------------------------------------------------------------------
+          function removeBackgroundAuto(canvas){
+            var ctx = canvas.getContext('2d');
+            var W = canvas.width, H = canvas.height;
+            var img = ctx.getImageData(0, 0, W, H);
+            var d = img.data;
+            var N = W * H;
+            var state = new Uint8Array(N); // 0 = não visto, 1 = fundo
+            var seedR = new Float32Array(N), seedG = new Float32Array(N), seedB = new Float32Array(N);
+
+            // "Preservar detalhes": quanto maior, mais conservadora é a remoção.
+            var SM = window.__DTF_SMART || {};
+            var PRES = window.__DTF_PRESERVE || 'alto';
+            var removalIntensity = Math.max(0, Math.min(100, SM.removalIntensity == null ? 55 : SM.removalIntensity));
+            var detailProtection = Math.max(0, Math.min(100, SM.detailProtection == null ? 85 : SM.detailProtection));
+            // 0% mantém tudo. A intensidade só regula até onde a região de fundo
+            // conectada às bordas pode crescer; nunca seleciona pixels por cor.
+            if (removalIntensity === 0) return canvas;
+            var K = PRES === 'maximo' ? 0.55 : (PRES === 'alto' ? 0.75 : (PRES === 'medio' ? 1 : 1.25));
+            K *= 0.35 + (removalIntensity / 100) * 0.9;
+            K *= 1.15 - (detailProtection / 100) * 0.45;
+            // Compatibilidade com ajustes antigos de tolerância do fundo.
+            K *= Math.max(0.3, Math.min(2, (SM.bgTol == null ? 100 : SM.bgTol) / 100));
+            var LOCAL_TOL = 16 * K;   // variação permitida entre pixels vizinhos (gradiente suave do fundo)
+            var GLOBAL_TOL = 52 * K;  // desvio máximo em relação à cor de origem da região de fundo
+            var EDGE_STOP = 34 * K;   // contraste que caracteriza fronteira da arte
+
+
+
+            function gradAt(x, y){
+              var i = (y * W + x) * 4;
+              var g = 0;
+              if (x + 1 < W) { var j = i + 4; g = Math.max(g, Math.abs(d[i]-d[j]), Math.abs(d[i+1]-d[j+1]), Math.abs(d[i+2]-d[j+2])); }
+              if (y + 1 < H) { var k = i + W * 4; g = Math.max(g, Math.abs(d[i]-d[k]), Math.abs(d[i+1]-d[k+1]), Math.abs(d[i+2]-d[k+2])); }
+              return g;
+            }
+
+            var qx = new Int32Array(N), qy = new Int32Array(N), head = 0, tail = 0;
+            function seed(x, y){
+              var p = y * W + x;
+              if (state[p]) return;
+              var i = p * 4;
+              state[p] = 1;
+              seedR[p] = d[i]; seedG[p] = d[i+1]; seedB[p] = d[i+2];
+              qx[tail] = x; qy[tail] = y; tail++;
+            }
+            for (var x0 = 0; x0 < W; x0++) { seed(x0, 0); seed(x0, H-1); }
+            for (var y0 = 0; y0 < H; y0++) { seed(0, y0); seed(W-1, y0); }
+
+            function visit(x, y, from){
+              if (x < 0 || y < 0 || x >= W || y >= H) return;
+              var p = y * W + x;
+              if (state[p]) return;
+              var i = p * 4;
+              if (d[i+3] === 0) { state[p] = 1; seedR[p] = seedR[from]; seedG[p] = seedG[from]; seedB[p] = seedB[from]; qx[tail]=x; qy[tail]=y; tail++; return; }
+              var fi = from * 4;
+              var localDiff = Math.max(Math.abs(d[i]-d[fi]), Math.abs(d[i+1]-d[fi+1]), Math.abs(d[i+2]-d[fi+2]));
+              if (localDiff > LOCAL_TOL) return;                      // fronteira de arte
+              if (gradAt(x, y) > EDGE_STOP) return;                   // contorno / detalhe
+              var gd = Math.max(Math.abs(d[i]-seedR[from]), Math.abs(d[i+1]-seedG[from]), Math.abs(d[i+2]-seedB[from]));
+              if (gd > GLOBAL_TOL) return;                            // deriva demais da cor de fundo
+              state[p] = 1;
+              seedR[p] = seedR[from]; seedG[p] = seedG[from]; seedB[p] = seedB[from];
+              qx[tail] = x; qy[tail] = y; tail++;
+            }
+
+            while (head < tail) {
+              var cx = qx[head], cy = qy[head]; head++;
+              var cp = cy * W + cx;
+              visit(cx+1, cy, cp); visit(cx-1, cy, cp);
+              visit(cx, cy+1, cp); visit(cx, cy-1, cp);
+            }
+
+            // ----------------------------------------------------------------
+            // PROTEÇÃO DE DETALHES INTERNOS (olhos de animais, brilhos, dentes):
+            // abertura morfológica na máscara de fundo. Vazamentos finos e
+            // manchas pequenas dentro da arte são devolvidos; o fundo real
+            // (grande e contínuo) continua removido.
+            // ----------------------------------------------------------------
+            (function protectInternalDetails(){
+              var protectFactor = 0.003 + (detailProtection / 100) * 0.006;
+              var r = Math.max(2, Math.round(Math.min(W, H) * protectFactor));
+              var tmp = new Uint8Array(N), ero = new Uint8Array(N);
+              // erosão (min) horizontal depois vertical
+              var x, y, p, k, v;
+              for (y = 0; y < H; y++) for (x = 0; x < W; x++) {
+                v = 1;
+                for (k = -r; k <= r; k++) { var xx = x + k; if (xx < 0 || xx >= W) continue; if (!state[y*W+xx]) { v = 0; break; } }
+                tmp[y*W+x] = v;
+              }
+              for (y = 0; y < H; y++) for (x = 0; x < W; x++) {
+                v = 1;
+                for (k = -r; k <= r; k++) { var yy = y + k; if (yy < 0 || yy >= H) continue; if (!tmp[yy*W+x]) { v = 0; break; } }
+                ero[y*W+x] = v;
+              }
+              // dilatação (max) horizontal depois vertical
+              for (y = 0; y < H; y++) for (x = 0; x < W; x++) {
+                v = 0;
+                for (k = -r; k <= r; k++) { var xd = x + k; if (xd < 0 || xd >= W) continue; if (ero[y*W+xd]) { v = 1; break; } }
+                tmp[y*W+x] = v;
+              }
+              for (y = 0; y < H; y++) for (x = 0; x < W; x++) {
+                v = 0;
+                for (k = -r; k <= r; k++) { var yd = y + k; if (yd < 0 || yd >= H) continue; if (tmp[yd*W+x]) { v = 1; break; } }
+                ero[y*W+x] = v;
+              }
+              // borda da imagem sempre continua como fundo
+              for (x = 0; x < W; x++) { if (state[x]) ero[x] = 1; if (state[(H-1)*W+x]) ero[(H-1)*W+x] = 1; }
+              for (y = 0; y < H; y++) { if (state[y*W]) ero[y*W] = 1; if (state[y*W+W-1]) ero[y*W+W-1] = 1; }
+              // reconecta o fundo verdadeiro a partir das bordas
+              var keep = new Uint8Array(N), qs = new Int32Array(N), h2 = 0, t2 = 0;
+              function push(p){ if (p < 0 || p >= N) return; if (keep[p] || !state[p] ) return; keep[p] = 1; qs[t2++] = p; }
+              for (x = 0; x < W; x++) { push(x); push((H-1)*W + x); }
+              for (y = 0; y < H; y++) { push(y*W); push(y*W + W - 1); }
+              while (h2 < t2) {
+                p = qs[h2++];
+                var px = p % W, py = (p / W) | 0;
+                if (px + 1 < W && ero[p+1]) push(p+1);
+                if (px - 1 >= 0 && ero[p-1]) push(p-1);
+                if (py + 1 < H && ero[p+W]) push(p+W);
+                if (py - 1 >= 0 && ero[p-W]) push(p-W);
+              }
+              // devolve tudo que não faz parte do fundo reconectado
+              for (p = 0; p < N; p++) if (state[p] && !keep[p]) state[p] = 0;
+            })();
+
+            // ----------------------------------------------------------------
+            // PROTECTED MASK — elementos principais (pessoas, cabelo, roupas,
+            // textos, logotipos, contornos). O preto que encosta na arte volta
+            // a ser arte: é contorno/cabelo, nunca fundo.
+            // ----------------------------------------------------------------
+            var prot = new Uint8Array(N);
+            (function buildProtectedMask(){
+              var SMx = window.__DTF_SMART || {};
+              var protectArt = SMx.protectArt !== false;
+              var protectBlack = SMx.protectBlack !== false;
+              var lvl = Math.max(10, Math.min(160, SMx.blackLevel == null ? 60 : SMx.blackLevel));
+              var R = Math.max(2, Math.round(Math.min(W, H) * (0.006 + (detailProtection / 100) * 0.012)));
+              var p, i;
+              for (p = 0; p < N; p++) if (!state[p]) prot[p] = 1;
+              if (!protectArt) return;
+              var q2 = new Int32Array(N), h3 = 0, t3 = 0, dist = new Int16Array(N);
+              for (p = 0; p < N; p++) if (prot[p]) { q2[t3++] = p; dist[p] = 0; }
+              while (h3 < t3) {
+                p = q2[h3++];
+                if (dist[p] >= R) continue;
+                var x3 = p % W, y3 = (p / W) | 0;
+                var nb3 = [x3 + 1 < W ? p + 1 : -1, x3 - 1 >= 0 ? p - 1 : -1,
+                           y3 + 1 < H ? p + W : -1, y3 - 1 >= 0 ? p - W : -1];
+                for (var k3 = 0; k3 < 4; k3++) {
+                  var np3 = nb3[k3];
+                  if (np3 < 0 || prot[np3]) continue;
+                  i = np3 * 4;
+                  var lm3 = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+                  if (!(protectBlack && lm3 <= lvl)) continue; // recupera só preto de contorno
+                  prot[np3] = 1; dist[np3] = dist[p] + 1; q2[t3++] = np3;
+                }
+              }
+              for (p = 0; p < N; p++) if (prot[p]) state[p] = 0;
+            })();
+
+            var removed = 0;
+            for (var p2 = 0; p2 < N; p2++) if (state[p2]) { d[p2*4+3] = 0; removed++; }
+            // Segurança: se quase tudo seria apagado, a detecção falhou — não altera nada.
+            if (removed > N * 0.97) return canvas;
+
+            // Suavização da máscara: antialias nas bordas do recorte.
+            var smooth = Math.round((window.__DTF_SMART || {}).maskSmooth || 0);
+            if (smooth > 0) {
+              var rad = Math.max(1, Math.min(3, smooth));
+              var al = new Float32Array(N), tmpA = new Float32Array(N), pi;
+              for (pi = 0; pi < N; pi++) al[pi] = d[pi * 4 + 3];
+              var xa, ya, ka, acc, cnt, idx;
+              for (ya = 0; ya < H; ya++) for (xa = 0; xa < W; xa++) {
+                acc = 0; cnt = 0;
+                for (ka = -rad; ka <= rad; ka++) { idx = xa + ka; if (idx < 0 || idx >= W) continue; acc += al[ya * W + idx]; cnt++; }
+                tmpA[ya * W + xa] = acc / cnt;
+              }
+              for (xa = 0; xa < W; xa++) for (ya = 0; ya < H; ya++) {
+                acc = 0; cnt = 0;
+                for (ka = -rad; ka <= rad; ka++) { idx = ya + ka; if (idx < 0 || idx >= H) continue; acc += tmpA[idx * W + xa]; cnt++; }
+                al[ya * W + xa] = acc / cnt;
+              }
+              // só suaviza a franja: núcleo da arte e fundo puro ficam intactos
+              for (pi = 0; pi < N; pi++) {
+                var orig = d[pi * 4 + 3];
+                if (orig > 0 && orig < 255) continue;
+                var bl = al[pi];
+                if (bl > 8 && bl < 247) d[pi * 4 + 3] = Math.round(bl);
+              }
+            }
+
+            window.__DTF_LAST_MASK = { w: W, h: H, bg: state, prot: prot };
+            ctx.putImageData(img, 0, 0);
+            return canvas;
+
+          }
+
+          window.__DTF_REMOVE_BG_BY_EDGES = function(canvas){ return removeBackgroundAuto(canvas); };
+
+
+
+          overlay.querySelector('#dtf-upcrop-ok').onclick = function(){
+            // Transição instantânea: mostra "Aguarde…" e processa no frame seguinte
+            var wait = document.createElement('div');
+            wait.style.cssText = 'position:fixed;inset:0;z-index:1000000;background:rgba(5,8,14,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;font:800 clamp(15px,2.2vw,20px) system-ui;';
+            wait.innerHTML = '<div style="width:46px;height:46px;border-radius:50%;border:4px solid rgba(255,255,255,.18);border-top-color:#22c55e;animation:dtfspin .7s linear infinite"></div>'
+              + '<div>Aguarde… preparando sua arte</div>'
+              + '<div style="font:600 clamp(11px,1.6vw,13px) system-ui;opacity:.7">Isso leva só um instante</div>'
+              + '<style>@keyframes dtfspin{to{transform:rotate(360deg)}}</style>';
+            document.body.appendChild(wait);
+
+            var run = function(){
+            var finalPaper = window.__DTF_UPLOAD_PAPER;
+            window.__DTF_UPLOAD_FIT_MODE = fitMode;
+            if (fitMode === 'smart' && finalPaper) {
+              if (!bounds) { wait.remove(); alert('Não há arte visível neste arquivo.'); return; }
+              var dims = paperDimensions(finalPaper);
+              var fitted = document.createElement('canvas');
+              fitted.width = dims.width; fitted.height = dims.height;
+              renderSmart(fitted);
+              // O modo Smart Fit também precisa executar a remoção de fundo
+              // escolhida antes de enviar a arte ao motor. Antes este caminho
+              // retornava cedo e pulava a remoção, fazendo o fundo preto entrar
+              // no halftone e eliminando textos claros isolados na saída.
+              var smartRmBg = overlay.querySelector('#dtf-rmbg');
+              var smartUniversal = window.__DTF_SHIRT_COLOR === 'colorida' || window.__DTF_SHIRT_COLOR === 'white';
+              if (!smartUniversal && smartRmBg && smartRmBg.checked) {
+                try { removeBackgroundAuto(fitted); window.__DTF_HAS_TRANSPARENCY = true; } catch(e){}
+              }
+              window.__DTF_TARGET_PX = [dims.width, dims.height];
+              overlay.remove();
+              try { window.__DTF_APPLY_SHIRT_PRESET(); } catch(e){}
+              if (window.__DTF_ENSURE_SHIRT_PRESET) window.__DTF_ENSURE_SHIRT_PRESET();
+              onConfirm(fitted, finalPaper);
+              setTimeout(function(){ wait.remove(); }, 120);
+              return;
+            }
+            var sx = Math.round(rect.x / scale);
+            var sy = Math.round(rect.y / scale);
+            var sw = Math.round(rect.w / scale);
+            var sh = Math.round(rect.h / scale);
+            var out = document.createElement('canvas');
+            out.width = Math.max(1, sw); out.height = Math.max(1, sh);
+            // Copia exatamente a área mostrada dentro do quadro de recorte.
+            out.getContext('2d').drawImage(work, -sx, -sy, work.width, work.height);
+
+            var rmBg = overlay.querySelector('#dtf-rmbg');
+            var universalNow = window.__DTF_SHIRT_COLOR === 'colorida' || window.__DTF_SHIRT_COLOR === 'white';
+            if (!universalNow && rmBg && rmBg.checked) {
+              try { removeBackgroundAuto(out); window.__DTF_HAS_TRANSPARENCY = true; } catch(e){}
+            }
+
+
+            // Reamostra para o tamanho em cm escolhido (300 DPI reais).
+            var wCm = parseFloat(inW.value), hCm = parseFloat(inH.value);
+            if (finalPaper || (wCm > 0 && hCm > 0)) {
+              var exactDims = finalPaper ? paperDimensions(finalPaper) : null;
+              var tw = exactDims ? exactDims.width : cmToPx(wCm);
+              var th = exactDims ? exactDims.height : cmToPx(hCm);
+              var scaled = document.createElement('canvas');
+              scaled.width = tw; scaled.height = th;
+              var sctx = scaled.getContext('2d');
+              sctx.imageSmoothingEnabled = true;
+              sctx.imageSmoothingQuality = 'high';
+               // O quadro já tem a proporção exata do formato. Escala o recorte
+               // diretamente para os pixels finais, sem uma segunda margem.
+               sctx.drawImage(out, 0, 0, tw, th);
+              out = scaled;
+              window.__DTF_TARGET_PX = [tw, th];
+            } else {
+              window.__DTF_TARGET_PX = null;
+            }
+
+            overlay.remove();
+            // Aplica o preset escolhido na tela principal imediatamente e,
+            // como o React pode renderizar os botões depois, tenta novamente.
+            try { window.__DTF_APPLY_SHIRT_PRESET(); } catch(e){}
+            if (window.__DTF_ENSURE_SHIRT_PRESET) window.__DTF_ENSURE_SHIRT_PRESET();
+            onConfirm(out, window.__DTF_UPLOAD_PAPER || null);
+            setTimeout(function(){ try { window.__DTF_APPLY_SHIRT_PRESET(); } catch(e){} }, 350);
+            setTimeout(function(){ try { window.__DTF_APPLY_SHIRT_PRESET(); } catch(e){} }, 1200);
+            setTimeout(function(){ wait.remove(); }, 120);
+            };
+            requestAnimationFrame(function(){ requestAnimationFrame(run); });
+          };
+
+
+
+        }
+
+        // ---- Suporte a PDF e PSD: converte para PNG (300 DPI) antes do fluxo normal ----
+        function dtfLoadScript(src){
+          return new Promise(function(res, rej){
+            if (document.querySelector('script[data-dtf-src="'+src+'"]')) {
+              var ex = document.querySelector('script[data-dtf-src="'+src+'"]');
+              if (ex.__loaded) return res(); ex.addEventListener('load', function(){res();}); ex.addEventListener('error', rej); return;
+            }
+            var s = document.createElement('script');
+            s.src = src; s.async = true; s.setAttribute('data-dtf-src', src);
+            s.onload = function(){ s.__loaded = true; res(); };
+            s.onerror = function(){ rej(new Error('Falha ao carregar ' + src)); };
+            document.head.appendChild(s);
+          });
+        }
+        function dtfIsPdf(file){ return /pdf$/i.test(file.name||'') || /pdf/i.test(file.type||''); }
+        function dtfIsPsd(file){ return /\.(psd|psb)$/i.test(file.name||'') || /photoshop|vnd\.adobe/i.test(file.type||''); }
+        function dtfCanvasToFile(canvas, name){
+          return new Promise(function(res){
+            canvas.toBlob(function(blob){
+              res(new File([blob], name, { type: 'image/png' }));
+            }, 'image/png');
+          });
+        }
+        async function dtfConvertPdf(file){
+          await dtfLoadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js');
+          var pdfjs = window['pdfjsLib'];
+          pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+          var buf = await file.arrayBuffer();
+          var doc = await pdfjs.getDocument({ data: buf }).promise;
+          var page = await doc.getPage(1);
+          // 72pt = 1in → escala 300/72 garante 300 DPI reais
+          var scale = 300 / 72;
+          var vp = page.getViewport({ scale: scale });
+          var maxPx = 12000;
+          if (vp.width > maxPx || vp.height > maxPx) {
+            scale = scale * Math.min(maxPx / vp.width, maxPx / vp.height);
+            vp = page.getViewport({ scale: scale });
+          }
+          var c = document.createElement('canvas');
+          c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+          await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+          return dtfCanvasToFile(c, (file.name||'arte.pdf').replace(/\.[^.]+$/, '') + '.png');
+        }
+        async function dtfConvertPsd(file){
+          await dtfLoadScript('https://cdn.jsdelivr.net/npm/ag-psd@23.1.1/dist/bundle.js');
+          var ag = window['agPsd'];
+          var buf = await file.arrayBuffer();
+          var psd = ag.readPsd(buf, { useImageData: false, skipLayerImageData: true, skipThumbnail: true });
+          var canvas = psd.canvas;
+          if (!canvas) throw new Error('PSD sem imagem composta. Salve o PSD com "Maximizar compatibilidade".');
+          return dtfCanvasToFile(canvas, (file.name||'arte.psd').replace(/\.[^.]+$/, '') + '.png');
+        }
+        function dtfShowConverting(msg){
+          var w = document.createElement('div');
+          w.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:rgba(4,8,14,.82);color:#eaf2ff;font:600 15px system-ui,sans-serif;backdrop-filter:blur(4px)';
+          w.textContent = msg;
+          document.body.appendChild(w);
+          return w;
+        }
+
+        function installUploadHook(){
+          var inputs = document.querySelectorAll('input[type=file]');
+          inputs.forEach(function(inp){
+            if (inp.__dtfUploadHooked) return;
+            inp.__dtfUploadHooked = true;
+            try {
+              var acc = inp.getAttribute('accept') || '';
+              if (!/pdf/i.test(acc)) inp.setAttribute('accept', (acc ? acc + ',' : 'image/*,') + 'application/pdf,.pdf,image/vnd.adobe.photoshop,.psd,.psb');
+            } catch(e){}
+            inp.addEventListener('change', function(ev){
+              var file = inp.files && inp.files[0];
+              if (!file) return;
+              if (window.__DTF_UPLOAD_CROP_DONE) { window.__DTF_UPLOAD_CROP_DONE = false; return; }
+              var convertedUpload = window.__DTF_CONVERTED_UPLOAD_PENDING === true;
+              window.__DTF_CONVERTED_UPLOAD_PENDING = false;
+              if (!convertedUpload) {
+                window.__DTF_CURRENT_UPLOAD_IS_PNG = /\.png$/i.test(file.name || '') || /^image\/png$/i.test(file.type || '');
+              }
+              if (dtfIsPdf(file) || dtfIsPsd(file)) {
+                window.__DTF_CURRENT_UPLOAD_IS_PNG = false;
+                ev.preventDefault(); ev.stopImmediatePropagation();
+                var waitEl = dtfShowConverting('Convertendo ' + (dtfIsPdf(file) ? 'PDF' : 'PSD') + '… aguarde');
+                (dtfIsPdf(file) ? dtfConvertPdf(file) : dtfConvertPsd(file)).then(function(png){
+                  waitEl.remove();
+                  try {
+                    var dt = new DataTransfer();
+                    dt.items.add(png);
+                    inp.files = dt.files;
+                  } catch(e){}
+                  window.__DTF_CONVERTED_UPLOAD_PENDING = true;
+                  inp.dispatchEvent(new Event('change', { bubbles: true }));
+                }).catch(function(err){
+                  waitEl.remove();
+                  try { inp.value = ''; } catch(e){}
+                  alert('Não consegui abrir esse arquivo: ' + (err && err.message ? err.message : 'formato não suportado'));
+                });
+                return;
+              }
+              if (!/^image\//.test(file.type)) return;
+              ev.preventDefault(); ev.stopImmediatePropagation();
+
+              // Detecta transparência: PNG com alpha < 255 → mantém fundo, só reticula (inclui preto).
+              window.__DTF_HAS_TRANSPARENCY = false;
+              try {
+                if (/png/i.test(file.type)) {
+                  var _img = new Image();
+                  _img.onload = function(){
+                    try {
+                      var _c = document.createElement('canvas');
+                      var _w = Math.min(_img.naturalWidth, 400);
+                      var _h = Math.round(_img.naturalHeight * (_w / _img.naturalWidth));
+                      _c.width = _w; _c.height = _h;
+                      var _ctx = _c.getContext('2d');
+                      _ctx.drawImage(_img, 0, 0, _w, _h);
+                      var _d = _ctx.getImageData(0, 0, _w, _h).data;
+                      for (var _i = 3; _i < _d.length; _i += 4) {
+                        if (_d[_i] < 250) { window.__DTF_HAS_TRANSPARENCY = true; break; }
+                      }
+                    } catch(e){}
+                  };
+                  _img.src = URL.createObjectURL(file);
+                }
+              } catch(e){}
+
+              var url = URL.createObjectURL(file);
+              var img = new Image();
+              img.onload = function(){
+                openUploadCropModal(img, function(cropCanvas, paper){
+                  URL.revokeObjectURL(url);
+                  function finish(newFile){
+                    try {
+                      var dt = new DataTransfer();
+                      dt.items.add(newFile);
+                      inp.files = dt.files;
+                    } catch(e){}
+                    window.__DTF_UPLOAD_CROP_DONE = true;
+                    window.__DTF_EXPORT_A4_NEXT_STICKY = paper === 'A4';
+                    window.__DTF_EXPORT_A3_NEXT_STICKY = paper === 'A3';
+                    window.__DTF_EXPORT_A2_NEXT_STICKY = paper === 'A2';
+                    if (!paper) { window.__DTF_ORIGINAL_CANVAS = null; window.__DTF_UPLOAD_FIT_MODE = null; }
+                    inp.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
+                  if (!cropCanvas) { finish(file); return; }
+                  try {
+                    var oc = document.createElement('canvas');
+                    oc.width = cropCanvas.width; oc.height = cropCanvas.height;
+                    oc.getContext('2d').drawImage(cropCanvas, 0, 0);
+                    window.__DTF_ORIGINAL_CANVAS = oc;
+                  } catch (e) {}
+
+                  cropCanvas.toBlob(function(blob){
+                    var name = (file.name || 'upload.png').replace(/\.[^.]+$/, '') + '_crop.png';
+                    var newFile = new File([blob], name, { type: 'image/png' });
+                    finish(newFile);
+                  }, 'image/png');
+                }, function(){
+                  URL.revokeObjectURL(url);
+                  try { inp.value = ''; } catch(e){}
+                });
+              };
+              img.src = url;
+            }, true);
+          });
+        }
+        document.addEventListener('DOMContentLoaded', installUploadHook);
+        new MutationObserver(installUploadHook).observe(document.documentElement, { childList: true, subtree: true });
+
+        // Propaga a escolha A4/A3/A2 do upload até o clique final em "Exportar Master"
+        // — sem exigir que o usuário use os botões separados de tamanho.
+        document.addEventListener('click', function(e){
+          var btn = e.target && e.target.closest ? e.target.closest('button') : null;
+          if (!btn) return;
+          if (!/Exportar Master/i.test(btn.textContent || '')) return;
+          if (window.__DTF_EXPORT_A4_NEXT_STICKY) window.__DTF_EXPORT_A4_NEXT = true;
+          else if (window.__DTF_EXPORT_A3_NEXT_STICKY) window.__DTF_EXPORT_A3_NEXT = true;
+          else if (window.__DTF_EXPORT_A2_NEXT_STICKY) window.__DTF_EXPORT_A2_NEXT = true;
+        }, true);
+
+      })();
+    </script>
+    <script>
+      /* Visualização nítida online. LUPA DE ALTA DEFINIÇÃO apenas no software desktop (window.dtflex). */
+      (function(){
+        var st = document.createElement('style');
+        st.textContent = 'canvas{image-rendering:-webkit-optimize-contrast;}' +
+
+
+
+          '#dtf-zoom-stage{position:fixed;inset:0;z-index:99999;background:#0b0d12;display:flex;flex-direction:column}' +
+          '#dtf-zoom-stage .hd{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;background:#111827;color:#fff;font:600 13px system-ui}' +
+          '#dtf-zoom-stage .hd button{background:#facc15;color:#111827;border:0;border-radius:6px;padding:4px 9px;font:700 12px system-ui;cursor:pointer}' +
+          '#dtf-zoom-stage .vp{flex:1;overflow:auto;background:#0b0d12;display:block}' +
+          '#dtf-zoom-stage canvas{image-rendering:pixelated;display:block;margin:0 auto}';
+        document.head.appendChild(st);
+
+        var IS_DESKTOP = typeof window.dtflex !== 'undefined';
+
+
+        function biggestCanvas(){
+          var best = null, area = 0;
+          document.querySelectorAll('canvas').forEach(function(c){
+            // Nunca mexer nos canvases do modal de upload/recorte.
+            if (c.closest('#dtf-upcrop-stage')) return;
+            var a = c.width * c.height;
+            if (a > area && c.width > 200) { area = a; best = c; }
+          });
+          return best;
+        }
+
+        // ============================================================
+        // VIEWPORT PROFISSIONAL: translate + scale, zoom no cursor, pan
+        // ============================================================
+        var MAXZ = 16;             // 1600%
+        var V = {
+          el: null,               // canvas alvo
+          vp: null,               // elemento viewport (pai do canvas)
+          zoom: 1, offX: 0, offY: 0,
+          tZoom: 1, tOffX: 0, tOffY: 0,
+          fit: 1,
+          raf: 0, dragging: false, sliding: false, px: 0, py: 0
+        };
+
+        function vpSize(){
+          if (!V.vp) return { w: 1, h: 1 };
+          return { w: V.vp.clientWidth || 1, h: V.vp.clientHeight || 1 };
+        }
+        function computeFit(){
+          if (!V.el) return 1;
+          var s = vpSize();
+          var f = Math.min(s.w / V.el.width, s.h / V.el.height) * 0.94;
+          return Math.max(0.02, Math.min(f, 4));
+        }
+        function clampZoom(z){ return Math.max(Math.min(V.fit, 0.1), Math.min(MAXZ, z)); }
+        function clampOffsets(z, ox, oy){
+          var s = vpSize();
+          var w = V.el.width * z, h = V.el.height * z;
+          // Menor que o viewport -> centraliza. Maior -> pan livre, mas sem vazar do quadro.
+          if (w <= s.w) ox = (s.w - w) / 2; else ox = Math.min(0, Math.max(s.w - w, ox));
+          if (h <= s.h) oy = (s.h - h) / 2; else oy = Math.min(0, Math.max(s.h - h, oy));
+          return { x: ox, y: oy };
+        }
+        function paint(){
+          if (!V.el) return;
+          V.el.style.transform = 'translate3d(' + V.offX.toFixed(2) + 'px,' + V.offY.toFixed(2) + 'px,0) scale(' + V.zoom.toFixed(5) + ')';
+          V.el.style.imageRendering = V.zoom >= 0.999 ? 'pixelated' : 'auto';
+          var s = vpSize();
+          var pannable = (V.el.width * V.zoom > s.w + 1) || (V.el.height * V.zoom > s.h + 1);
+          if (V.vp) V.vp.style.cursor = V.dragging ? 'grabbing' : (pannable ? 'grab' : 'default');
+          if (bar) {
+            var zv = bar.querySelector('#dtf-zv'), zr = bar.querySelector('#dtf-zr');
+            if (zv) zv.textContent = Math.round(V.zoom * 100) + '%';
+            if (zr && !V.sliding) zr.value = String(zoomToSlider(V.zoom));
+          }
+        }
+        function tick(){
+          V.raf = 0;
+          var k = 0.28; // suavização (interpolação exponencial)
+          var dz = V.tZoom - V.zoom, dx = V.tOffX - V.offX, dy = V.tOffY - V.offY;
+          if (Math.abs(dz) < 0.0004 && Math.abs(dx) < 0.15 && Math.abs(dy) < 0.15) {
+            V.zoom = V.tZoom; V.offX = V.tOffX; V.offY = V.tOffY; paint(); return;
+          }
+          V.zoom += dz * k; V.offX += dx * k; V.offY += dy * k;
+          paint();
+          V.raf = requestAnimationFrame(tick);
+        }
+        function schedule(){ if (!V.raf) V.raf = requestAnimationFrame(tick); }
+        function setView(z, ox, oy, instant){
+          z = clampZoom(z);
+          var c = clampOffsets(z, ox, oy);
+          V.tZoom = z; V.tOffX = c.x; V.tOffY = c.y;
+          if (instant) { V.zoom = z; V.offX = c.x; V.offY = c.y; paint(); }
+          else schedule();
+        }
+        function zoomAt(px, py, nextZoom){
+          // ponto do cursor -> mundo -> reposiciona para manter sob o cursor
+          var z0 = V.tZoom;
+          var wx = (px - V.tOffX) / z0, wy = (py - V.tOffY) / z0;
+          var z1 = clampZoom(nextZoom);
+          setView(z1, px - wx * z1, py - wy * z1);
+        }
+        function fitView(instant){
+          V.fit = computeFit();
+          setView(V.fit, 0, 0, instant);
+        }
+        function centerZoom(z, instant){
+          var s = vpSize();
+          // Escala a partir do centro do container (enquadramento estável)
+          var z0 = V.tZoom, px = s.w / 2, py = s.h / 2;
+          var wx = (px - V.tOffX) / z0, wy = (py - V.tOffY) / z0;
+          var z1 = clampZoom(z);
+          setView(z1, px - wx * z1, py - wy * z1, instant);
+        }
+        // Slider logarítmico (0..1000) -> zoom 10%..1600%
+        var ZMIN = 0.1;
+        function sliderToZoom(v){
+          return ZMIN * Math.pow(MAXZ / ZMIN, Math.max(0, Math.min(1000, v)) / 1000);
+        }
+        function zoomToSlider(z){
+          z = Math.max(ZMIN, Math.min(MAXZ, z));
+          return Math.round(1000 * Math.log(z / ZMIN) / Math.log(MAXZ / ZMIN));
+        }
+
+        function detachViewport(){
+          if (V.el) {
+            V.el.style.transform = ''; V.el.style.position = ''; V.el.style.transformOrigin = '';
+            V.el.style.willChange = ''; V.el.style.left = ''; V.el.style.top = ''; V.el.style.zoom = '';
+          }
+          if (V.vp && V.vp.__dtfWheel) {
+            V.vp.removeEventListener('wheel', V.vp.__dtfWheel);
+            V.vp.removeEventListener('pointerdown', V.vp.__dtfDown);
+            window.removeEventListener('pointermove', V.vp.__dtfMove);
+            window.removeEventListener('pointerup', V.vp.__dtfUp);
+            window.removeEventListener('pointercancel', V.vp.__dtfUp);
+            V.vp.removeEventListener('gesturestart', V.vp.__dtfGesture);
+            V.vp.removeEventListener('gesturechange', V.vp.__dtfGesture);
+            V.vp.__dtfWheel = null;
+            V.vp.style.overflow = ''; V.vp.style.cursor = ''; V.vp.style.touchAction = '';
+          }
+          V.el = null; V.vp = null;
+        }
+
+        function attachViewport(c){
+          var vp = c.parentElement;
+          if (!vp) return;
+          detachViewport();
+          V.el = c; V.vp = vp;
+
+          var cs = getComputedStyle(vp);
+          if (cs.position === 'static') vp.style.position = 'relative';
+          vp.style.overflow = 'hidden';
+          vp.style.touchAction = 'none';
+          vp.style.cursor = 'grab';
+          if (vp.clientHeight < 240) {
+            var top = vp.getBoundingClientRect().top;
+            vp.style.height = Math.max(120, Math.round(window.innerHeight - top - 20)) + 'px';
+          }
+
+          c.style.position = 'absolute';
+          c.style.left = '0'; c.style.top = '0';
+          c.style.margin = '0';
+          c.style.zoom = '';
+          c.style.transformOrigin = '0 0';
+          c.style.willChange = 'transform';
+          c.style.backfaceVisibility = 'hidden';
+
+          var onWheel = function(e){
+            e.preventDefault();
+            var r = vp.getBoundingClientRect();
+            var px = e.clientX - r.left, py = e.clientY - r.top;
+            var dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1);
+            // ~10% por "clique" de scroll, proporcional ao delta (trackpad suave)
+            var factor = Math.exp(-dy * 0.001);
+            zoomAt(px, py, V.tZoom * factor);
+          };
+          var pointers = new Map();
+          var pinchDistance = 0, pinchZoom = 1, pinchMidX = 0, pinchMidY = 0;
+          function touchPair(){
+            var values = Array.from(pointers.values());
+            return values.length >= 2 ? [values[0], values[1]] : null;
+          }
+          function beginPinch(){
+            var pair = touchPair();
+            if (!pair) return;
+            var dx = pair[1].x - pair[0].x, dy = pair[1].y - pair[0].y;
+            pinchDistance = Math.max(1, Math.hypot(dx, dy));
+            pinchZoom = V.tZoom;
+            pinchMidX = (pair[0].x + pair[1].x) / 2;
+            pinchMidY = (pair[0].y + pair[1].y) / 2;
+            V.dragging = false;
+          }
+          var onDown = function(e){
+            if (e.pointerType !== 'touch' && e.button !== 0 && e.button !== 1) return;
+            e.preventDefault();
+            var r = vp.getBoundingClientRect();
+            if (e.pointerType === 'touch') {
+              pointers.set(e.pointerId, { x: e.clientX - r.left, y: e.clientY - r.top });
+              try { vp.setPointerCapture(e.pointerId); } catch(err){}
+              if (pointers.size >= 2) { beginPinch(); return; }
+            }
+            V.dragging = true; V.px = e.clientX; V.py = e.clientY;
+            vp.style.cursor = 'grabbing';
+            try { vp.setPointerCapture(e.pointerId); } catch(err){}
+          };
+          var onMove = function(e){
+            if (e.pointerType === 'touch' && pointers.has(e.pointerId)) {
+              var r = vp.getBoundingClientRect();
+              pointers.set(e.pointerId, { x: e.clientX - r.left, y: e.clientY - r.top });
+              if (pointers.size >= 2) {
+                e.preventDefault();
+                var pair = touchPair();
+                if (!pair) return;
+                var dxp = pair[1].x - pair[0].x, dyp = pair[1].y - pair[0].y;
+                var distance = Math.max(1, Math.hypot(dxp, dyp));
+                var midX = (pair[0].x + pair[1].x) / 2;
+                var midY = (pair[0].y + pair[1].y) / 2;
+                var worldX = (pinchMidX - V.tOffX) / pinchZoom;
+                var worldY = (pinchMidY - V.tOffY) / pinchZoom;
+                var nextZoom = clampZoom(pinchZoom * distance / pinchDistance);
+                setView(nextZoom, midX - worldX * nextZoom, midY - worldY * nextZoom, true);
+                return;
+              }
+            }
+            if (!V.dragging) return;
+            e.preventDefault();
+            var dx = e.clientX - V.px, dy = e.clientY - V.py;
+            V.px = e.clientX; V.py = e.clientY;
+            // pan 1:1 com o cursor, sem interpolação (resposta imediata)
+            setView(V.tZoom, V.tOffX + dx, V.tOffY + dy, true);
+          };
+          var onUp = function(e){
+            if (e && e.pointerType === 'touch') pointers.delete(e.pointerId);
+            if (pointers.size === 1) {
+              var remaining = Array.from(pointers.values())[0];
+              var rr = vp.getBoundingClientRect();
+              V.px = remaining.x + rr.left; V.py = remaining.y + rr.top;
+              V.dragging = true;
+            } else if (pointers.size === 0) {
+              V.dragging = false;
+            }
+            paint();
+          };
+          var stopGesture = function(e){ e.preventDefault(); };
+
+          vp.addEventListener('wheel', onWheel, { passive: false });
+          vp.addEventListener('pointerdown', onDown);
+          window.addEventListener('pointermove', onMove, { passive: false });
+          window.addEventListener('pointerup', onUp);
+          window.addEventListener('pointercancel', onUp);
+          vp.addEventListener('gesturestart', stopGesture, { passive: false });
+          vp.addEventListener('gesturechange', stopGesture, { passive: false });
+          vp.__dtfWheel = onWheel; vp.__dtfDown = onDown; vp.__dtfMove = onMove; vp.__dtfUp = onUp; vp.__dtfGesture = stopGesture;
+
+          fitView(true);
+        }
+
+        var bar = null;
+
+        function setZoom(z, instant){
+          if (!V.el) return;
+          centerZoom(z, instant);
+        }
+
+        // ---- Ben-Day ao vivo no preview ----
+        function canvasSig(c){
+          try {
+            var t = document.createElement('canvas'); t.width = 24; t.height = 24;
+            var x = t.getContext('2d'); x.drawImage(c, 0, 0, 24, 24);
+            var d = x.getImageData(0, 0, 24, 24).data, s = c.width + 'x' + c.height + ':';
+            for (var i = 0; i < d.length; i += 61) s += d[i];
+            return s;
+          } catch (e) { return String(c.width) + 'x' + String(c.height); }
+        }
+        var bdDrawnSig = null, bdOrig = null;
+        function restoreBenDay(){
+          var c = biggestCanvas();
+          if (c && bdOrig && bdOrig.width === c.width && bdOrig.height === c.height) {
+            try {
+              var ctx = c.getContext('2d');
+              ctx.clearRect(0, 0, c.width, c.height);
+              ctx.drawImage(bdOrig, 0, 0);
+            } catch (e) {}
+          }
+          bdOrig = null; bdDrawnSig = null;
+        }
+        function applyBenDayPreview(force){
+          var c = biggestCanvas();
+          if (!c) return;
+          if (!window.__DTF_BENDAY) { bdDrawnSig = null; return; }
+          var sig = canvasSig(c);
+          if (!force && sig === bdDrawnSig) return;
+          try {
+            if (sig !== bdDrawnSig) {
+              bdOrig = document.createElement('canvas');
+              bdOrig.width = c.width; bdOrig.height = c.height;
+              bdOrig.getContext('2d').drawImage(c, 0, 0);
+            }
+            var res = renderBenDay(bdOrig || c);
+            var ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, c.width, c.height);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(res, 0, 0);
+            bdDrawnSig = canvasSig(c);
+            window.__DTF_BENDAY_LIVE_CANVAS = c;
+          } catch (e) {}
+        }
+
+        function buildBar(){
+          if (bar || !biggestCanvas()) return;
+          bar = document.createElement('div');
+          bar.id = 'dtf-viewbar';
+          bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:99998;display:flex;align-items:center;gap:10px;background:rgba(17,24,39,.94);border:1px solid #374151;border-radius:12px;padding:8px 14px;box-shadow:0 8px 24px rgba(0,0,0,.45);font:700 12px system-ui;color:#e5e7eb;';
+          bar.innerHTML = '<span style="color:#a78bfa">Zoom</span>' +
+            '<input id="dtf-zr" type="range" min="0" max="1000" step="1" value="500" style="width:210px;accent-color:#a78bfa;cursor:pointer" />' +
+            '<b id="dtf-zv" style="min-width:56px;text-align:center;background:#1f2937;border-radius:8px;padding:4px 8px;">100%</b>' +
+            '<button id="dtf-zfit" style="background:#374151;color:#e5e7eb;border:0;border-radius:8px;padding:5px 9px;font:700 12px system-ui;cursor:pointer">Ajustar</button>' +
+            '<button id="dtf-z1" style="background:#374151;color:#e5e7eb;border:0;border-radius:8px;padding:5px 9px;font:700 12px system-ui;cursor:pointer">1:1</button>';
+          document.body.appendChild(bar);
+          var zr = bar.querySelector('#dtf-zr');
+          zr.addEventListener('pointerdown', function(){ V.sliding = true; });
+          window.addEventListener('pointerup', function(){ if (V.sliding) { V.sliding = false; paint(); } });
+          zr.addEventListener('input', function(){ V.sliding = true; setZoom(sliderToZoom(+this.value), true); });
+          zr.addEventListener('change', function(){ V.sliding = false; paint(); });
+          bar.querySelector('#dtf-zfit').addEventListener('click', function(){ fitView(false); });
+          bar.querySelector('#dtf-z1').addEventListener('click', function(){ centerZoom(1); });
+        }
+
+
+        function bindEmbedded(){
+          if (window.__dtfZoomBound) return;
+          window.__dtfZoomBound = true;
+          document.addEventListener('keydown', function(e){
+            if (!V.el) return;
+            if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) { e.preventDefault(); centerZoom(V.tZoom * 1.25); }
+            if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); centerZoom(V.tZoom / 1.25); }
+            if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); fitView(false); }
+            if (e.key === 'Escape') fitView(false);
+          });
+          window.addEventListener('resize', function(){ if (V.el) { V.fit = computeFit(); setView(V.tZoom, V.tOffX, V.tOffY, true); } });
+        }
+        document.addEventListener('DOMContentLoaded', bindEmbedded);
+        bindEmbedded();
+
+        // ============================================================
+        // ZOOM FIEL: o preview mostra EXATAMENTE a retícula entregue.
+        // Remove filtros CSS (saturate/contrast/brightness) que a tela
+        // aplicava por cima da arte e força render 1:1 pixelado.
+        // ============================================================
+        function trueColorPreview(){
+          if (!V.el) return;
+          try { V.el.style.filter = 'none'; } catch(e){}
+          var n = V.el.parentElement, hops = 0;
+          while (n && hops < 5) {
+            var f = getComputedStyle(n).filter;
+            if (f && f !== 'none') n.style.filter = 'none';
+            n = n.parentElement; hops++;
+          }
+        }
+
+        // ============================================================
+        // Botão/controle de BRILHO ao lado de "Saturação (Compensação)".
+        // Age no parâmetro real de Gama (afeta o arquivo entregue).
+        // ============================================================
+        function reactSet(input, value){
+          var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+          setter.call(input, String(value));
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        function findGammaInput(){
+          var labels = Array.prototype.slice.call(document.querySelectorAll('span'));
+          for (var i = 0; i < labels.length; i++) {
+            if ((labels[i].textContent || '').indexOf('Gama / Meios-Tons') > -1) {
+              var box = labels[i].closest('div').parentElement;
+              var inp = box && box.querySelector('input[type=range]');
+              if (inp) return inp;
+            }
+          }
+          return null;
+        }
+        function injectBrightness(){
+          var host = null, spans = document.querySelectorAll('span');
+          for (var i = 0; i < spans.length; i++) {
+            if ((spans[i].textContent || '').indexOf('Saturação (Compensação)') > -1) {
+              host = spans[i].closest('div').parentElement; break;
+            }
+          }
+          if (!host || document.getElementById('dtf-bright-wrap')) return;
+          var wrap = document.createElement('div');
+          wrap.id = 'dtf-bright-wrap';
+          wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:10px;';
+          wrap.innerHTML = '<div style="display:flex;justify-content:space-between;font:600 12px ui-monospace,monospace;color:#94a3b8">'
+            + '<span>Brilho</span><b id="dtf-bright-v" style="color:#fbbf24">0%</b></div>'
+            + '<input id="dtf-bright" type="range" min="-100" max="100" step="5" value="0" style="width:100%;accent-color:#fbbf24;height:4px;cursor:pointer" />'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+            + '<button data-b="-30" class="dtf-bq" style="flex:1;min-width:64px;padding:5px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font:700 11px system-ui;cursor:pointer">Escurecer</button>'
+            + '<button data-b="0" class="dtf-bq" style="flex:1;min-width:64px;padding:5px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font:700 11px system-ui;cursor:pointer">Neutro</button>'
+            + '<button data-b="30" class="dtf-bq" style="flex:1;min-width:64px;padding:5px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font:700 11px system-ui;cursor:pointer">Clarear</button>'
+            + '</div>'
+            + '<span style="font:400 10px system-ui;color:#64748b">Clareia ou escurece os meios-tons antes da retícula — vale para o arquivo final.</span>';
+          host.appendChild(wrap);
+          var slider = wrap.querySelector('#dtf-bright');
+          var label = wrap.querySelector('#dtf-bright-v');
+          function apply(v){
+            label.textContent = (v > 0 ? '+' : '') + v + '%';
+            var g = findGammaInput();
+            if (!g) return;
+            // 0% -> 1.00 | +100% -> 1.80 | -100% -> 0.30
+            var gamma = v >= 0 ? 1 + (v / 100) * 0.8 : 1 + (v / 100) * 0.7;
+            reactSet(g, gamma.toFixed(2));
+          }
+          slider.addEventListener('input', function(){ apply(+this.value); });
+          wrap.querySelectorAll('.dtf-bq').forEach(function(b){
+            b.addEventListener('click', function(){ slider.value = b.dataset.b; apply(+b.dataset.b); });
+          });
+        }
+
+        // ============================================================
+        // Responsividade: legibilidade em qualquer tela/resolução.
+        // ============================================================
+        (function responsive(){
+          var st = document.createElement('style');
+          st.textContent =
+            'html{width:100%;min-height:100%;-webkit-text-size-adjust:100%;overflow-x:hidden}' +
+            'body,#root{width:100%;min-width:0;min-height:100%;overflow-x:hidden}' +
+            '#root>*{min-width:0;max-width:100%}' +
+            'img,video,canvas{max-width:100%}' +
+            '#dtf-viewbar{max-width:96vw;flex-wrap:wrap;justify-content:center}' +
+            '#dtf-viewbar input[type=range]{width:min(210px,38vw)}' +
+            '@media (max-width:900px){' +
+            '  .text-\\[10px\\]{font-size:11px!important}' +
+            '  .text-xs{font-size:12.5px!important}' +
+            '  .text-sm{font-size:14px!important}' +
+            '  #dtf-viewbar{font-size:12px;padding:6px 10px;gap:7px;bottom:8px}' +
+            '  #dtf-smart-panel{right:max(8px,env(safe-area-inset-right))!important;bottom:max(76px,calc(env(safe-area-inset-bottom) + 68px))!important;width:min(280px,calc(100vw - 16px))!important;max-height:62dvh!important;box-sizing:border-box}' +
+            '  button,input,select{max-width:100%}' +
+            '  button{min-height:40px}' +
+            '  input[type=checkbox],input[type=radio]{min-width:20px;min-height:20px}' +
+            '  input[type=range]{min-height:32px}' +
+            '  .max-w-7xl,.max-w-3xl,.max-w-xl{width:100%!important;min-width:0!important}' +
+            '  .lg\\:grid-cols-12{grid-template-columns:minmax(0,1fr)!important}' +
+            '  .lg\\:col-span-4,.lg\\:col-span-8{grid-column:auto!important}' +
+            '  .min-w-\\[200px\\]{min-width:0!important}' +
+            '}' +
+            '@media (max-width:600px){' +
+            '  body{font-size:14px}' +
+            '  #dtf-viewbar{left:8px!important;right:8px!important;bottom:max(8px,env(safe-area-inset-bottom))!important;transform:none!important;width:auto!important;max-width:none!important}' +
+            '}' +
+            '@media (max-width:1024px) and (pointer:coarse){#dtf-viewbar{display:none!important}#dtf-smart-panel{bottom:max(10px,env(safe-area-inset-bottom))!important}#dtf-url-mobile{position:relative!important;inset:auto!important;width:100%!important;max-width:none!important;margin:0!important}#dtf-url-mobile input{font-size:16px!important}}' +
+            '@media (min-width:1800px){' +
+            '  .text-xs{font-size:14px!important}' +
+            '  .text-sm{font-size:15.5px!important}' +
+            '  #dtf-viewbar{font-size:14px}' +
+            '}' +
+            'input[type=range]{min-height:22px}' +
+            'button{touch-action:manipulation}';
+          document.head.appendChild(st);
+        })();
+
+        setInterval(function(){ injectBrightness(); trueColorPreview(); }, 700);
+
+
+        setInterval(function(){
+          var c = biggestCanvas();
+          if (c && !document.getElementById('dtf-upcrop-stage')) {
+            if (c !== V.el || !c.isConnected) attachViewport(c);
+          } else if (V.el && !c) {
+            detachViewport();
+          }
+          buildBar();
+          if (bar) bar.style.display = (c && !document.getElementById('dtf-upcrop-stage')) ? 'flex' : 'none';
+        }, 900);
+
+
+      })();
+    </script>
+    <script>
+      // ============================================================
+      // HALFTONE UNIVERSAL — TECIDOS BRANCOS E COLORIDOS
+      // Camisa preta mantém o fluxo antigo. Branco e colorido usam apenas
+      // o Alpha original do PNG: nenhuma cor, região ou detalhe é removido.
+      // ============================================================
+      (function () {
+        var S = window.__DTF_SMART = window.__DTF_SMART || {
+          on: true, white: 70, choke: 1, preserve: 'alto',
+          blackMode: 'reticula', blackLevel: 60,
+          shadowMode: 'reticula', shadowLevel: 170,
+          auto: true,
+          protectArt: true, protectBlack: true, bgTol: 100, maskSmooth: 1,
+          removalIntensity: 55, detailProtection: 85,
+          htIntensity: 100, htAdaptive: true
+
+        };
+        window.__DTF_PRESERVE = S.preserve;
+
+
+        function isColored() { return window.__DTF_SHIRT_COLOR === 'colorida'; }
+        function isUniversal() {
+          return window.__DTF_SHIRT_COLOR === 'white' || window.__DTF_SHIRT_COLOR === 'colorida';
+        }
+        function shirtRGB() {
+          var hex = (window.__DTF_SHIRT_HEX || '#78350F').replace('#', '');
+          if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+          var n = parseInt(hex, 16);
+          return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+        }
+
+        // ===== MOTOR UNIVERSAL DE COR DO TECIDO =====================
+        // A cor do tecido é uma VARIÁVEL: qualquer HEX/RGB entra e o
+        // motor calcula luminosidade, saturação e contraste para decidir
+        // quanta base branca, choke, alcance de sombra e limite de preto
+        // aquela cor exige. NUNCA usa a cor do tecido para apagar pixels.
+        function fabricProfile() {
+          var c = shirtRGB();
+          var lum = (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;      // 0..1
+          var mx = Math.max(c.r, c.g, c.b), mn = Math.min(c.r, c.g, c.b);
+          var sat = mx === 0 ? 0 : (mx - mn) / mx;                         // 0..1
+          // contraste do tecido contra tinta branca e contra tinta preta
+          var vsWhite = 1 - lum, vsBlack = lum;
+          // tecido escuro ou muito saturado exige mais base branca
+          var white = Math.round(Math.min(95, Math.max(25,
+            30 + vsWhite * 55 + sat * 18)));
+          // tecido claro precisa de menos branco e menos choke
+          var choke = lum > 0.78 ? 0 : (lum > 0.45 ? 1 : 2);
+          // sombras: em tecido escuro, ampliar o alcance para não sumirem
+          var shadowLevel = Math.round(130 + (1 - lum) * 90);              // 130..220
+          var blackLevel = Math.round(45 + (1 - lum) * 35);                // 45..80
+          var name = lum < 0.18 ? 'muito escuro' : lum < 0.42 ? 'escuro'
+            : lum < 0.68 ? 'médio' : lum < 0.86 ? 'claro' : 'muito claro';
+          return { lum: lum, sat: sat, vsWhite: vsWhite, vsBlack: vsBlack,
+                   white: white, choke: choke, shadowLevel: shadowLevel,
+                   blackLevel: blackLevel, name: name };
+        }
+        function applyFabricAuto() {
+          var f = fabricProfile();
+          S.white = f.white;
+          S.choke = f.choke;
+          S.shadowLevel = f.shadowLevel;
+          S.blackLevel = f.blackLevel;
+          // preto da arte sempre preservado; nunca "remover" automático
+          if (S.blackMode === 'remover') S.blackMode = 'reticula';
+          S.preserve = f.lum > 0.8 ? 'medio' : 'alto';
+          window.__DTF_PRESERVE = S.preserve;
+          return f;
+        }
+        function refreshPanelUI() {
+          if (!panel) return;
+          var f = fabricProfile();
+          var q = function (id) { return panel.querySelector(id); };
+          var fab = q('#sp-fab');
+          if (fab) fab.innerHTML = 'Tecido ' + f.name + ' · luz ' + Math.round(f.lum * 100)
+            + '% · saturação ' + Math.round(f.sat * 100) + '%<br/>base branca ' + S.white
+            + '% · choke ' + S.choke + 'px · sombra até ' + S.shadowLevel;
+          if (q('#sp-w')) { q('#sp-w').value = S.white; q('#sp-wv').textContent = S.white + '%'; }
+          if (q('#sp-c')) { q('#sp-c').value = S.choke; q('#sp-cv').textContent = S.choke + ' px'; }
+          if (q('#sp-bl')) { q('#sp-bl').value = S.blackLevel; q('#sp-blv').textContent = S.blackLevel; }
+          if (q('#sp-sl')) { q('#sp-sl').value = S.shadowLevel; q('#sp-slv').textContent = S.shadowLevel; }
+          if (q('#sp-p')) q('#sp-p').value = S.preserve;
+          if (q('#sp-bm')) q('#sp-bm').value = S.blackMode;
+          if (q('#sp-auto')) q('#sp-auto').checked = !!S.auto;
+          if (q('#sp-pa')) q('#sp-pa').checked = S.protectArt !== false;
+          if (q('#sp-pb')) q('#sp-pb').checked = S.protectBlack !== false;
+          if (q('#sp-ri')) { q('#sp-ri').value = S.removalIntensity; q('#sp-riv').textContent = S.removalIntensity + '%'; }
+          if (q('#sp-dp')) { q('#sp-dp').value = S.detailProtection; q('#sp-dpv').textContent = S.detailProtection + '%'; }
+          if (q('#sp-ms')) { q('#sp-ms').value = S.maskSmooth; q('#sp-msv').textContent = S.maskSmooth + ' px'; }
+          if (q('#sp-hi')) { q('#sp-hi').value = S.htIntensity; q('#sp-hiv').textContent = S.htIntensity + '%'; }
+
+        }
+
+        function biggest() {
+          var best = null, area = 0;
+          document.querySelectorAll('canvas').forEach(function (c) {
+            if (c.closest && c.closest('#dtf-upcrop-stage')) return;
+            if (c.closest && c.closest('#dtf-smart-modal')) return;
+            var a = c.width * c.height;
+            if (a > area && c.width > 200) { area = a; best = c; }
+          });
+          return best;
+        }
+        function copyOf(src) {
+          var c = document.createElement('canvas');
+          c.width = src.width; c.height = src.height;
+          c.getContext('2d').drawImage(src, 0, 0);
+          return c;
+        }
+
+        // --- Base branca adaptativa (white underbase) ---------------
+        // Alpha da base = alpha da arte, contraído (choke) e modulado
+        // pelo contraste entre a cor da arte e a cor do tecido.
+        function buildUnderbase(src) {
+          var w = src.width, h = src.height;
+          var ctx = src.getContext('2d');
+          var img = ctx.getImageData(0, 0, w, h);
+          var d = img.data, n = w * h;
+          var sh = shirtRGB();
+          var amount = Math.max(0, Math.min(100, S.white)) / 100;
+
+          var a = new Float32Array(n);
+          for (var i = 0; i < n; i++) a[i] = d[i * 4 + 3];
+
+          // choke: erosão do alpha (min filter) para a base não vazar
+          var r = Math.round(S.choke);
+          if (r > 0) {
+            var tmp = new Float32Array(n);
+            for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+              var m = 255;
+              for (var dx = -r; dx <= r; dx++) {
+                var xx = x + dx; if (xx < 0 || xx >= w) continue;
+                var v = a[y * w + xx]; if (v < m) m = v;
+              }
+              tmp[y * w + x] = m;
+            }
+            for (var x2 = 0; x2 < w; x2++) for (var y2 = 0; y2 < h; y2++) {
+              var m2 = 255;
+              for (var dy = -r; dy <= r; dy++) {
+                var yy = y2 + dy; if (yy < 0 || yy >= h) continue;
+                var v2 = tmp[yy * w + x2]; if (v2 < m2) m2 = v2;
+              }
+              a[y2 * w + x2] = m2;
+            }
+          }
+
+          var out = document.createElement('canvas');
+          out.width = w; out.height = h;
+          var octx = out.getContext('2d');
+          var oimg = octx.createImageData(w, h);
+          var od = oimg.data;
+          for (var p = 0; p < n; p++) {
+            var al = a[p];
+            if (al <= 0) continue;
+            var pr = d[p * 4], pg = d[p * 4 + 1], pb = d[p * 4 + 2];
+            // distância da cor da arte para a cor do tecido (0..1)
+            var dist = Math.min(1, Math.sqrt(
+              (pr - sh.r) * (pr - sh.r) + (pg - sh.g) * (pg - sh.g) + (pb - sh.b) * (pb - sh.b)
+            ) / 441);
+            // pouca diferença com o tecido → mais branco por baixo
+            var cov = amount * (1 - 0.45 * dist);
+            od[p * 4] = 255; od[p * 4 + 1] = 255; od[p * 4 + 2] = 255;
+            od[p * 4 + 3] = Math.max(0, Math.min(255, Math.round(al * cov)));
+          }
+          octx.putImageData(oimg, 0, 0);
+          return out;
+        }
+
+        // --- Referência: arte original redimensionada ----------------
+        function refData(w, h) {
+          var orig = window.__DTF_ORIGINAL_CANVAS;
+          if (!orig || !orig.width) return null;
+          try {
+            var t = document.createElement('canvas');
+            t.width = w; t.height = h;
+            var tc = t.getContext('2d');
+            tc.imageSmoothingEnabled = true;
+            tc.drawImage(orig, 0, 0, w, h);
+            return tc.getImageData(0, 0, w, h).data;
+          } catch (e) { return null; }
+        }
+
+        // Restringe a saída à área originalmente visível do PNG sem preencher
+        // novamente os furos criados pela retícula. Assim, a arte não ganha uma
+        // segunda camada por baixo e os vazados continuam transparentes.
+        function preserveOriginalAlpha(src) {
+          var w = src.width, h = src.height;
+          var ref = refData(w, h);
+          if (!ref) return src;
+          var out = copyOf(src);
+          var oc = out.getContext('2d');
+          var img = oc.getImageData(0, 0, w, h), d = img.data;
+          var visibleIn = 0, visibleOut = 0, mismatches = 0;
+          for (var i = 0; i < d.length; i += 4) {
+            var originalAlpha = ref[i + 3];
+            var renderedAlpha = d[i + 3];
+            if (originalAlpha > 0) visibleIn++;
+            // Fora da arte original sempre fica transparente. Dentro dela,
+            // conserva o Alpha produzido pelo halftone (inclusive os vazados).
+            d[i + 3] = Math.min(originalAlpha, renderedAlpha);
+            if (d[i + 3] > 0) visibleOut++;
+            if (originalAlpha === 0 && d[i + 3] !== 0) mismatches++;
+          }
+          oc.putImageData(img, 0, 0);
+          window.__DTF_LAST_ALPHA_CHECK = {
+            mode: window.__DTF_SHIRT_COLOR,
+            width: w,
+            height: h,
+            visibleInput: visibleIn,
+            visibleOutput: visibleOut,
+            mismatches: mismatches,
+            valid: mismatches === 0,
+            halftoneHoles: Math.max(0, visibleIn - visibleOut)
+          };
+          return out;
+        }
+
+        function hexRGB(hex) {
+          hex = String(hex || '#000000').replace('#', '');
+          if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+          var n = parseInt(hex, 16) || 0;
+          return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+        }
+
+        // Regras por cor: preto do olho sólido / sem retícula / remover
+        // e intensidade (quantidade de retícula) de uma cor escolhida.
+        function applyArtRules(src) {
+          // 🛡️ Preservar arte principal: o preto da arte nunca é removido.
+          if (S.protectArt && S.blackMode === 'remover') S.blackMode = 'reticula';
+          var needBlack = S.blackMode !== 'reticula';
+          var needShadow = S.shadowMode === 'reticula';
+          var needHT = S.htAdaptive && S.htIntensity < 100;
+          var needUser = !!(window.__DTF_USER_MASK && window.__DTF_USER_MASK.w);
+          if (!needBlack && !needShadow && !needHT && !needUser) return src;
+
+          var w = src.width, h = src.height;
+          var ref = refData(w, h);
+          if (!ref) return src;
+
+          var out = document.createElement('canvas');
+          out.width = w; out.height = h;
+          var oc = out.getContext('2d');
+          oc.imageSmoothingEnabled = false;
+          oc.drawImage(src, 0, 0);
+          var img = oc.getImageData(0, 0, w, h), d = img.data;
+
+          for (var y = 0; y < h; y++) {
+            for (var x = 0; x < w; x++) {
+              var i = (y * w + x) * 4;
+              var ra = ref[i + 3];
+              if (ra < 16) continue;
+              var rr = ref[i], rg = ref[i + 1], rb = ref[i + 2];
+              var lum = 0.299 * rr + 0.587 * rg + 0.114 * rb;
+
+              if (needBlack && lum <= S.blackLevel) {
+                if (S.blackMode === 'solido') {
+                  d[i] = 0; d[i + 1] = 0; d[i + 2] = 0; d[i + 3] = 255;
+                }
+                continue;
+              }
+
+              // SOMBRAS: tons escuros acima do preto recebem retícula
+              // proporcional — quanto mais escura a sombra, mais pontos.
+              if (needShadow && lum > S.blackLevel && lum <= S.shadowLevel) {
+                var range = Math.max(1, S.shadowLevel - S.blackLevel);
+                var shade = 1 - (lum - S.blackLevel) / range; // 0..1 (1 = mais escura)
+                // mínimo de pontos para a sombra não sumir
+                var skeep = 0.12 + 0.88 * shade;
+                if (skeep < 1) {
+                  var st = ((x * 7 + y * 13) % 100) / 100;
+                  if (st >= skeep) d[i + 3] = 0;
+                }
+              }
+
+              // HALFTONE ADAPTATIVO: áreas escuras mantêm densidade suficiente
+              // para não perder detalhe; áreas claras perdem pontos primeiro.
+              if (needHT && lum > S.shadowLevel) {
+                var soft = Math.max(0, Math.min(1, S.htIntensity / 100));
+                var light = Math.min(1, (lum - S.shadowLevel) / Math.max(1, 255 - S.shadowLevel));
+                var hkeep = soft + (1 - soft) * (1 - light); // clareia = menos pontos
+                if (hkeep < 1) {
+                  var ht = ((x * 11 + y * 17) % 100) / 100;
+                  if (ht >= hkeep) d[i + 3] = 0;
+                }
+              }
+            }
+          }
+
+          // CORREÇÃO MANUAL: pincéis preservar (2) / remover (1)
+          if (needUser) {
+            var um = window.__DTF_USER_MASK;
+            for (var uy = 0; uy < h; uy++) {
+              var my = Math.min(um.h - 1, Math.floor(uy / h * um.h));
+              for (var ux = 0; ux < w; ux++) {
+                var mv = um.data[my * um.w + Math.min(um.w - 1, Math.floor(ux / w * um.w))];
+                if (!mv) continue;
+                var ui = (uy * w + ux) * 4;
+                if (mv === 1) { d[ui + 3] = 0; }
+                else if (mv === 2 && ref[ui + 3] > 8) {
+                  d[ui] = ref[ui]; d[ui + 1] = ref[ui + 1]; d[ui + 2] = ref[ui + 2]; d[ui + 3] = 255;
+                }
+              }
+            }
+          }
+
+          oc.putImageData(img, 0, 0);
+          return out;
+        }
+
+
+        function composite(src) {
+          var art = applyArtRules(src);
+          if (S.white <= 0) return art;
+          var base = buildUnderbase(art);
+          var out = document.createElement('canvas');
+          out.width = art.width; out.height = art.height;
+          var c = out.getContext('2d');
+          c.imageSmoothingEnabled = false;
+          c.drawImage(base, 0, 0);
+          c.drawImage(art, 0, 0);
+          return out;
+        }
+
+        // Hook chamado pela exportação
+        window.__DTF_SMART_APPLY = function (flat) {
+          if (isUniversal()) {
+            try { return preserveOriginalAlpha(flat); } catch (e) { return flat; }
+          }
+          if (!S.on || !isColored()) return flat;
+          if (S.white <= 0 && S.blackMode === 'reticula' && S.shadowMode !== 'reticula'
+              && !(S.htAdaptive && S.htIntensity < 100)
+              && !(window.__DTF_USER_MASK && window.__DTF_USER_MASK.w)) return flat;
+
+          try { return composite(flat); } catch (e) { return flat; }
+        };
+
+
+        // --- Preview na cor da camiseta -----------------------------
+        function download(canvas, name) {
+          canvas.toBlob(function (b) {
+            var u = URL.createObjectURL(b);
+            var a = document.createElement('a');
+            a.href = u; a.download = name;
+            document.body.appendChild(a); a.click();
+            setTimeout(function () { URL.revokeObjectURL(u); a.remove(); }, 1500);
+          }, 'image/png');
+        }
+
+        function openPreview() {
+          var art = biggest();
+          if (!art) { alert('Gere a arte primeiro.'); return; }
+          var sh = window.__DTF_SHIRT_HEX || '#78350F';
+          var flat = copyOf(art);
+          // Usa exatamente o mesmo processamento da exportação: o que aparece
+          // aqui sobre a cor da camisa é literalmente o arquivo final.
+          var final = flat;
+          try { final = (typeof window.__DTF_SMART_APPLY === 'function' ? (window.__DTF_SMART_APPLY(flat) || flat) : flat); } catch (e) { final = flat; }
+          var orig = window.__DTF_ORIGINAL_CANVAS || null;
+
+          var m = document.createElement('div');
+          m.id = 'dtf-smart-modal';
+          m.style.cssText = 'position:fixed;inset:0;z-index:1000000;background:rgba(10,10,14,.94);display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px;overflow:auto;';
+          m.innerHTML = '<div style="font:800 15px system-ui;color:#fff;">👕 Simulação na camiseta</div>'
+            + '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;font:700 12px system-ui;">'
+            + '<button id="sm-final" style="padding:8px 14px;border-radius:8px;border:0;background:#7c3aed;color:#fff;cursor:pointer;">Halftone final</button>'
+            + '<button id="sm-orig" style="padding:8px 14px;border-radius:8px;border:0;background:#374151;color:#e5e7eb;cursor:pointer;">Arte original</button>'
+            + '<button id="sm-base" style="padding:8px 14px;border-radius:8px;border:0;background:#374151;color:#e5e7eb;cursor:pointer;">Só base branca</button>'
+            + '<button id="sm-close" style="padding:8px 14px;border-radius:8px;border:0;background:#dc2626;color:#fff;cursor:pointer;">Fechar</button>'
+            + '</div>'
+            + '<div id="sm-stage" style="background:' + sh + ';border-radius:14px;padding:26px;box-shadow:0 12px 40px rgba(0,0,0,.6);max-width:92vw;"></div>'
+            + '<div style="font:600 12px system-ui;color:#cbd5e1;text-align:center;max-width:620px;">O fundo desta tela usa a cor real do tecido escolhido. Nada é apagado da arte: a base branca só é somada por baixo.</div>';
+          document.body.appendChild(m);
+
+          var stage = m.querySelector('#sm-stage');
+          function show(canvas) {
+            stage.innerHTML = '';
+            var view = document.createElement('canvas');
+            var maxW = Math.min(window.innerWidth * 0.8, 760);
+            var maxH = window.innerHeight * 0.6;
+            var k = Math.min(maxW / canvas.width, maxH / canvas.height, 1);
+            view.width = Math.max(1, Math.round(canvas.width * k));
+            view.height = Math.max(1, Math.round(canvas.height * k));
+            view.style.cssText = 'display:block;max-width:100%;';
+            var vc = view.getContext('2d');
+            vc.imageSmoothingQuality = 'high';
+            vc.drawImage(canvas, 0, 0, view.width, view.height);
+            stage.appendChild(view);
+          }
+          show(final);
+          m.querySelector('#sm-final').onclick = function () { show(final); };
+          m.querySelector('#sm-base').onclick = function () { show(buildUnderbase(flat)); };
+          m.querySelector('#sm-orig').onclick = function () {
+            if (!orig) { alert('A arte original só fica disponível depois de um novo upload.'); return; }
+            show(orig);
+          };
+          m.querySelector('#sm-close').onclick = function () { m.remove(); };
+        }
+
+        // --- Máscara: visualização + pincéis de correção manual -----
+        // vermelho = removido · verde = preservado · preto = protegido
+        function openMask() {
+          var art = biggest();
+          if (!art) { alert('Gere a arte primeiro.'); return; }
+          var lm = window.__DTF_LAST_MASK || null;
+          var MW = 420;
+          var k = Math.min(1, MW / art.width);
+          var vw = Math.max(1, Math.round(art.width * k));
+          var vh = Math.max(1, Math.round(art.height * k));
+
+          var um = window.__DTF_USER_MASK;
+          if (!um || um.w !== vw || um.h !== vh) {
+            um = window.__DTF_USER_MASK = { w: vw, h: vh, data: new Uint8Array(vw * vh) };
+          }
+
+          var m = document.createElement('div');
+          m.id = 'dtf-smart-modal';
+          m.style.cssText = 'position:fixed;inset:0;z-index:1000000;background:rgba(8,10,16,.95);display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px;overflow:auto;';
+          m.innerHTML = '<div style="font:800 15px system-ui;color:#fff;">🎭 Máscara — vermelho sai · verde fica · preto protegido</div>'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;font:700 12px system-ui;">'
+            + '<button id="mk-keep" style="padding:8px 12px;border-radius:8px;border:0;background:#16a34a;color:#fff;cursor:pointer;">🖌️ Pincel preservar</button>'
+            + '<button id="mk-del" style="padding:8px 12px;border-radius:8px;border:0;background:#dc2626;color:#fff;cursor:pointer;">🖌️ Pincel remover</button>'
+            + '<button id="mk-era" style="padding:8px 12px;border-radius:8px;border:0;background:#374151;color:#e5e7eb;cursor:pointer;">🧽 Borracha</button>'
+            + '<button id="mk-clr" style="padding:8px 12px;border-radius:8px;border:0;background:#374151;color:#e5e7eb;cursor:pointer;">Limpar pinceladas</button>'
+            + '<button id="mk-ba" style="padding:8px 12px;border-radius:8px;border:0;background:#7c3aed;color:#fff;cursor:pointer;">👁️ Antes/depois</button>'
+            + '<button id="mk-close" style="padding:8px 12px;border-radius:8px;border:0;background:#0ea5e9;color:#062;cursor:pointer;">Aplicar e fechar</button>'
+            + '</div>'
+            + '<div style="display:flex;align-items:center;gap:8px;color:#cbd5e1;font:700 12px system-ui;">Tamanho do pincel <input id="mk-size" type="range" min="4" max="80" step="2" value="24" style="width:160px;accent-color:#a78bfa;" /><b id="mk-sv">24</b></div>'
+            + '<div id="mk-stage" style="background:#111827;border-radius:12px;padding:10px;"></div>'
+            + '<div style="font:600 12px system-ui;color:#94a3b8;max-width:620px;text-align:center;">As pinceladas valem para a arte final: verde devolve a arte original, vermelho deixa transparente.</div>';
+          document.body.appendChild(m);
+
+          var stage = m.querySelector('#mk-stage');
+          var view = document.createElement('canvas');
+          view.width = vw; view.height = vh;
+          view.style.cssText = 'display:block;max-width:88vw;cursor:crosshair;touch-action:none;';
+          stage.appendChild(view);
+          var vc = view.getContext('2d');
+
+          var base = document.createElement('canvas');
+          base.width = vw; base.height = vh;
+          base.getContext('2d').drawImage(art, 0, 0, vw, vh);
+
+          var overlayOn = true;
+          function draw() {
+            vc.clearRect(0, 0, vw, vh);
+            // xadrez de transparência
+            vc.fillStyle = '#1f2937'; vc.fillRect(0, 0, vw, vh);
+            vc.drawImage(base, 0, 0);
+            if (!overlayOn) return;
+            var img = vc.getImageData(0, 0, vw, vh), d = img.data;
+            var bImg = base.getContext('2d').getImageData(0, 0, vw, vh).data;
+            var protS = null, bgS = null;
+            if (lm) {
+              protS = lm.prot; bgS = lm.bg;
+            }
+            for (var y = 0; y < vh; y++) for (var x = 0; x < vw; x++) {
+              var p = y * vw + x, i = p * 4;
+              var mv = um.data[p];
+              var a = bImg[i + 3];
+              var src = null;
+              if (mv === 1) src = [220, 38, 38];
+              else if (mv === 2) src = [22, 163, 74];
+              else if (lm) {
+                var lx = Math.min(lm.w - 1, Math.floor(x / vw * lm.w));
+                var ly = Math.min(lm.h - 1, Math.floor(y / vh * lm.h));
+                var lp = ly * lm.w + lx;
+                if (bgS && bgS[lp]) src = [220, 38, 38];
+                else if (protS && protS[lp]) src = [17, 17, 17];
+                else src = [22, 163, 74];
+              } else {
+                src = a > 8 ? [22, 163, 74] : [220, 38, 38];
+              }
+              d[i] = Math.round(d[i] * 0.45 + src[0] * 0.55);
+              d[i + 1] = Math.round(d[i + 1] * 0.45 + src[1] * 0.55);
+              d[i + 2] = Math.round(d[i + 2] * 0.45 + src[2] * 0.55);
+              d[i + 3] = 255;
+            }
+            vc.putImageData(img, 0, 0);
+          }
+          draw();
+
+          var tool = 2, size = 24, painting = false;
+          var sizeEl = m.querySelector('#mk-size');
+          sizeEl.oninput = function () { size = +sizeEl.value; m.querySelector('#mk-sv').textContent = sizeEl.value; };
+          function setTool(t, btn) {
+            tool = t;
+            ['#mk-keep', '#mk-del', '#mk-era'].forEach(function (id) { m.querySelector(id).style.outline = ''; });
+            btn.style.outline = '3px solid #fbbf24';
+          }
+          m.querySelector('#mk-keep').onclick = function () { setTool(2, this); };
+          m.querySelector('#mk-del').onclick = function () { setTool(1, this); };
+          m.querySelector('#mk-era').onclick = function () { setTool(0, this); };
+          setTool(2, m.querySelector('#mk-keep'));
+
+          function paintAt(ev) {
+            var r = view.getBoundingClientRect();
+            var cx = Math.round((ev.clientX - r.left) / r.width * vw);
+            var cy = Math.round((ev.clientY - r.top) / r.height * vh);
+            var rad = Math.max(1, Math.round(size / 2 * (vw / Math.max(1, r.width))));
+            for (var y = cy - rad; y <= cy + rad; y++) {
+              if (y < 0 || y >= vh) continue;
+              for (var x = cx - rad; x <= cx + rad; x++) {
+                if (x < 0 || x >= vw) continue;
+                var dx = x - cx, dy = y - cy;
+                if (dx * dx + dy * dy > rad * rad) continue;
+                um.data[y * vw + x] = tool;
+              }
+            }
+            draw();
+          }
+          view.addEventListener('pointerdown', function (e) { painting = true; view.setPointerCapture(e.pointerId); paintAt(e); });
+          view.addEventListener('pointermove', function (e) { if (painting) paintAt(e); });
+          view.addEventListener('pointerup', function () { painting = false; });
+
+          m.querySelector('#mk-clr').onclick = function () { um.data.fill(0); draw(); };
+          m.querySelector('#mk-ba').onclick = function () { overlayOn = !overlayOn; draw(); };
+          m.querySelector('#mk-close').onclick = function () { m.remove(); };
+        }
+
+        // --- Painel de controle -------------------------------------
+
+        var panel = null;
+        function buildPanel() {
+          if (panel) return;
+          panel = document.createElement('div');
+          panel.id = 'dtf-smart-panel';
+          panel.style.cssText = 'position:fixed;right:14px;bottom:14px;z-index:99997;width:240px;background:rgba(17,24,39,.96);border:1px solid #4c1d95;border-radius:12px;padding:12px;font:700 12px system-ui;color:#e5e7eb;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;max-height:78vh;overflow:auto;';
+          panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;color:#c4b5fd;margin-bottom:8px;"><span>🎽 Halftone Universal</span>'
+            + '<button id="sp-toggle" title="Ocultar" style="border:0;background:#312e81;color:#ddd6fe;border-radius:6px;width:22px;height:22px;line-height:1;cursor:pointer;font:800 12px system-ui;">▾</button></div>'
+            + '<div id="sp-body">'
+            + '<div style="font:600 11px system-ui;color:#a5b4fc;margin-bottom:10px;line-height:1.45;">PNG transparente · todas as cores preservadas · nenhuma remoção ou knockout · Alpha original mantido.</div>'
+            + '<button id="sp-prev" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;border:0;background:#7c3aed;color:#fff;font:800 12px system-ui;cursor:pointer;">👕 Ver na camisa</button>'
+            + '</div>';
+          document.body.appendChild(panel);
+
+          var tg = panel.querySelector('#sp-toggle'), body = panel.querySelector('#sp-body');
+          tg.onclick = function () {
+            var hidden = body.style.display === 'none';
+            body.style.display = hidden ? 'block' : 'none';
+            tg.textContent = hidden ? '▾' : '▸';
+            tg.title = hidden ? 'Ocultar' : 'Mostrar';
+            panel.style.width = hidden ? '240px' : 'auto';
+          };
+
+          panel.querySelector('#sp-prev').onclick = openPreview;
+        }
+
+        var lastHex = null;
+        function tick() {
+          buildPanel();
+          if (!panel) return;
+          var hx = (window.__DTF_SHIRT_HEX || '') + '|' + (window.__DTF_SHIRT_COLOR || '');
+          if (hx !== lastHex) {
+            lastHex = hx;
+            refreshPanelUI();
+          }
+          panel.style.display = (isUniversal() && biggest()) ? 'block' : 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', tick);
+        setInterval(tick, 800);
+      })();
+    </script>
+    <script>
+      // ============================================================
+      // UPLOAD POR LINK (Pinterest, Google, etc.)
+      // Baixa a imagem do endereço colado e injeta no mesmo fluxo do
+      // upload normal (recorte, preset de tecido, halftone, 300 DPI).
+      // ============================================================
+      (function () {
+        function findInput() {
+          var ins = Array.prototype.slice.call(document.querySelectorAll('input[type=file]'));
+          for (var i = 0; i < ins.length; i++) {
+            var acc = (ins[i].accept || '').toLowerCase();
+            if (!acc || acc.indexOf('image') !== -1 || acc.indexOf('.png') !== -1) return ins[i];
+          }
+          return ins[0] || null;
+        }
+        async function importLibraryArt(payload) {
+          var input = findInput();
+          if (!input) { alert('Abra a área de upload da ferramenta primeiro.'); return; }
+          try {
+            var res = await fetch(payload.url, { credentials: 'same-origin', cache: 'no-store' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            var blob = await res.blob();
+            var file = new File([blob], payload.name || 'arte-biblioteca.png', {
+              type: blob.type || 'application/octet-stream'
+            });
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          } catch (e) {
+            alert('Não foi possível carregar esta arte agora. Tente novamente.');
+          }
+        }
+        window.addEventListener('message', function (event) {
+          if (event.origin !== window.location.origin) return;
+          var payload = event.data;
+          if (!payload || payload.type !== 'DTFLEXPRO_IMPORT_ART' || typeof payload.url !== 'string') return;
+          importLibraryArt(payload);
+        });
+        function proxies(url) {
+          var e = encodeURIComponent(url);
+          return [url,
+            'https://images.weserv.nl/?url=' + encodeURIComponent(url.replace(/^https?:\/\//, '')) + '&output=png&n=-1',
+            'https://corsproxy.io/?url=' + e];
+        }
+        async function fetchImage(url) {
+          var list = proxies(url), lastErr = null;
+          for (var i = 0; i < list.length; i++) {
+            try {
+              var res = await fetch(list[i], { mode: 'cors', cache: 'no-store' });
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              var blob = await res.blob();
+              if (blob.size > 0 && /image\//.test(blob.type || 'image/png')) return blob;
+            } catch (err) { lastErr = err; }
+          }
+          throw lastErr || new Error('falhou');
+        }
+        function nameFrom(url) {
+          try {
+            var p = new URL(url).pathname.split('/').pop() || 'imagem';
+            if (!/\.(png|jpe?g|webp|gif|bmp)$/i.test(p)) p += '.png';
+            return p;
+          } catch (e) { return 'imagem-link.png'; }
+        }
+        async function importFromUrl(url, btn) {
+          var input = findInput();
+          if (!input) { alert('Abra a área de upload da ferramenta primeiro.'); return; }
+          var old = btn.textContent;
+          btn.textContent = '⏳ Baixando...';
+          btn.disabled = true;
+          try {
+            var blob = await fetchImage(url.trim());
+            var file = new File([blob], nameFrom(url), { type: blob.type || 'image/png' });
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          } catch (e) {
+            alert('Não consegui baixar essa imagem. Copie o link direto da imagem (clique com o botão direito na imagem > "Copiar endereço da imagem") e tente de novo.');
+          } finally {
+            btn.textContent = old;
+            btn.disabled = false;
+          }
+        }
+
+        var bar = null;
+        function build() {
+          if (bar) return;
+          bar = document.createElement('div');
+          bar.id = 'dtf-url-mobile';
+          bar.style.cssText = 'position:fixed;top:12px;right:12px;z-index:99996;display:flex;gap:6px;align-items:center;max-width:calc(100vw - 24px);background:rgba(17,24,39,.96);border:1px solid #334155;border-radius:10px;padding:7px;font:700 12px system-ui;color:#e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.45);box-sizing:border-box;';
+          bar.innerHTML = '<input id="dtf-url" type="url" placeholder="Colar link da imagem (Pinterest, etc.)" style="flex:1;min-width:0;width:230px;padding:6px 8px;border-radius:7px;border:1px solid #475569;background:#0b1220;color:#e5e7eb;font:600 12px system-ui;" />'
+            + '<button id="dtf-url-go" style="padding:7px 10px;border-radius:7px;border:0;background:#0ea5e9;color:#062;font:800 12px system-ui;cursor:pointer;">🔗 Carregar</button>';
+          document.body.appendChild(bar);
+          if (window.matchMedia('(max-width:600px) and (pointer:coarse)').matches) {
+            var main = document.querySelector('main');
+            if (main) main.insertBefore(bar, main.firstChild);
+          }
+          var inp = bar.querySelector('#dtf-url'), go = bar.querySelector('#dtf-url-go');
+          go.onclick = function () {
+            var v = (inp.value || '').trim();
+            if (!/^https?:\/\//i.test(v)) { alert('Cole um endereço de imagem começando com http.'); return; }
+            importFromUrl(v, go);
+          };
+          inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') go.click(); });
+        }
+        function tick() {
+          build();
+          if (!bar) return;
+          if (window.matchMedia('(max-width:1024px) and (pointer:coarse)').matches) {
+            var main = document.querySelector('main');
+            if (main && bar.parentElement !== main) main.insertBefore(bar, main.firstChild);
+          }
+          bar.style.display = findInput() ? 'flex' : 'none';
+        }
+        document.addEventListener('DOMContentLoaded', tick);
+        setInterval(tick, 900);
+      })();
+    </script>
+    <script type="module" crossorigin src="/dtflex-tool/assets/index-DW2N2atJ.js?v=dpi300-universal-v71"></script>
+
+
+    <link rel="stylesheet" crossorigin href="/dtflex-tool/assets/index-BqA95up4.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

@@ -1,0 +1,1 @@
+ALTER TABLE public.user_access ADD COLUMN IF NOT EXISTS last_activity_at timestamp with time zone;

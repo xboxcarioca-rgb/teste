@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "sdk_version": "3.0.6",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ifollbyypwxnkddepxae.supabase.co/auth/v1",
+    "require_oauth_client_claim": true,
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "halftonedtflexpro",
+      "version": "0.1.0",
+      "title": "HalftoneDTFLEXPRO"
+    },
+    "tools": [
+      {
+        "name": "list_plans",
+        "title": "Listar planos",
+        "description": "Lista os planos oficiais DTFLEXPRO e as modalidades cartão e PIX.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": null,
+        "outputSchema": null
+      },
+      {
+        "name": "get_account_access",
+        "title": "Consultar acesso",
+        "description": "Consulta o plano, estado e validade do acesso DTFLEXPRO da pessoa conectada.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": null,
+        "outputSchema": null
+      },
+      {
+        "name": "get_subscription",
+        "title": "Consultar assinatura",
+        "description": "Consulta a assinatura mais recente e a próxima data de renovação da pessoa conectada.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": null,
+        "outputSchema": null
+      }
+    ]
+  }
+}
