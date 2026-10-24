@@ -9,7 +9,7 @@ import {
   clearSession,
   useSession,
 } from "@tanstack/react-start/server";
-import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -191,12 +191,34 @@ function safeEqual(input: string, expected: string) {
   return timingSafeEqual(a, b);
 }
 
+/**
+ * Hash SHA-256 da senha master do painel.
+ *
+ * A senha em texto puro NÃO fica no repositório (ele é público). Guardamos só o
+ * hash: quem ler o código não descobre a senha.
+ *
+ * Para trocar a senha, prefira a variável de ambiente ADMIN_MASTER_PASSWORD
+ * (ela tem prioridade). Se quiser trocar o hash de reserva:
+ *   node -e "console.log(require('crypto').createHash('sha256').update('SUA_SENHA').digest('hex'))"
+ */
+const ADMIN_MASTER_HASH =
+  "c5f76dbe9f7f832fae7504e153201690c6124ec635a203bf52746a524dd36d9f";
+
+function hashPassword(input: string) {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+/**
+ * Aceita a senha master configurada no ambiente OU o hash de reserva.
+ * Retorna false em vez de lançar — antes, a variável vazia derrubava a
+ * verificação e o painel respondia "Credenciais inválidas" para tudo.
+ */
 function isConfiguredAdminPassword(input: string) {
-  const expectedPassword = process.env.ADMIN_MASTER_PASSWORD;
-  if (!expectedPassword) {
-    throw new Error("ADMIN_MASTER_PASSWORD não configurado");
+  const fromEnv = process.env.ADMIN_MASTER_PASSWORD ?? process.env.MASTER_PASSWORD;
+  if (fromEnv && fromEnv.length > 0) {
+    return safeEqual(input, fromEnv);
   }
-  return safeEqual(input, expectedPassword);
+  return safeEqual(hashPassword(input), ADMIN_MASTER_HASH);
 }
 
 function generateAccessCode() {
@@ -276,16 +298,23 @@ async function sendAccessEmail({
 }
 
 async function logSecurity(eventType: string, success: boolean) {
-  const db = getDb();
-  const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
-  const userAgent = getRequestHeader("user-agent") ?? "unknown";
+  // O log NUNCA pode derrubar a ação. Antes, se o banco não respondesse, a
+  // exceção subia e o painel respondia "Credenciais inválidas" mesmo com a
+  // senha certa.
+  try {
+    const db = getDb();
+    const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
+    const userAgent = getRequestHeader("user-agent") ?? "unknown";
 
-  await db.from("security_logs").insert({
-    event_type: eventType,
-    ip,
-    user_agent: userAgent,
-    success,
-  });
+    await db.from("security_logs").insert({
+      event_type: eventType,
+      ip,
+      user_agent: userAgent,
+      success,
+    });
+  } catch {
+    /* best-effort */
+  }
 }
 
 async function logDeviceConflict(email: string, accessId: string) {
@@ -374,31 +403,42 @@ export const getAdminSession = createServerFn({ method: "GET" }).handler(async (
 export const verifyAdminPassword = createServerFn({ method: "POST" })
   .inputValidator(adminPasswordSchema)
   .handler(async ({ data }) => {
-    const db = getDb();
     const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
+
+    // Rate limit primeiro: conta as falhas da última hora antes de tentar.
+    let falhasRecentes = 0;
+    try {
+      const db = getDb();
+      const { count } = await db
+        .from("security_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("event_type", "admin_login_attempt")
+        .eq("ip", ip)
+        .eq("success", false)
+        .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
+      falhasRecentes = count ?? 0;
+    } catch {
+      // Banco fora do ar não deve impedir o acesso de emergência do dono.
+      falhasRecentes = 0;
+    }
+
+    if (falhasRecentes >= 5) {
+      await logSecurity("admin_login_rate_limited", false);
+      return {
+        ok: false,
+        rateLimited: true,
+        error: "Muitas tentativas erradas. Aguarde 1 hora ou reinicie o servidor.",
+      };
+    }
+
     if (isConfiguredAdminPassword(data.password)) {
       writeSignedAdminSession();
       await logSecurity("admin_login_attempt", true);
       return { ok: true };
     }
 
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-
-    const { count } = await db
-      .from("security_logs")
-      .select("id", { count: "exact", head: true })
-      .eq("event_type", "admin_login_attempt")
-      .eq("ip", ip)
-      .eq("success", false)
-      .gte("created_at", oneHourAgo);
-
-    if ((count ?? 0) >= 5) {
-      await logSecurity("admin_login_rate_limited", false);
-      return { ok: false };
-    }
-
     await logSecurity("admin_login_attempt", false);
-    return { ok: false };
+    return { ok: false, rateLimited: false, error: genericAdminError };
   });
 
 export const logoutAdminSession = createServerFn({ method: "POST" }).handler(async () => {
@@ -1456,4 +1496,416 @@ export const activateTrialAsPaid = createServerFn({ method: "POST" })
 
     await logSecurity("admin_activate_trial_paid", true);
     return { ok: true, expiresAt };
+  });
+
+// ============================================================================
+// NOVA ENTRADA — o cliente informa apenas o e-mail e o administrador libera.
+// Substitui a entrada por código/senha na tela de login.
+// ============================================================================
+
+const solicitacaoSchema = z.object({
+  email: z.string().trim().email().max(255),
+  deviceKey: z.string().trim().min(8).max(2048),
+});
+
+const consultaPedidoSchema = z.object({
+  requestId: z.string().uuid(),
+});
+
+const decisaoPedidoSchema = z.object({
+  requestId: z.string().uuid(),
+  action: z.enum(["approve", "deny"]),
+  planCode: z.enum(["mensal", "anual", "vitalicia"]).default("mensal"),
+  durationDays: z.number().int().min(1).max(36500).optional(),
+  deviceLimit: z.number().int().min(1).max(20).default(1),
+});
+
+const PEDIDO_VALIDADE_MINUTOS = 15;
+const PEDIDO_MAX_POR_IP_HORA = 3;
+
+/** Abre a sessão do cliente neste dispositivo. */
+async function abrirSessaoDoCliente(acesso: {
+  id: string;
+  email: string;
+  access_code: string;
+  expires_at: string;
+}, deviceSessionId?: string) {
+  const sessionToken = randomUUID();
+  const session = await useSession<AccessSessionData>(getAccessSessionConfig());
+  await session.update({
+    authenticated: true,
+    email: acesso.email,
+    code: acesso.access_code,
+    accessId: acesso.id,
+    sessionToken,
+    expiresAt: acesso.expires_at,
+    deviceSessionId,
+  });
+  return sessionToken;
+}
+
+/**
+ * O cliente pede acesso informando só o e-mail.
+ *
+ * Se o dispositivo já foi liberado antes, entra direto (sem incomodar o admin).
+ * Caso contrário, cria um pedido pendente que aparece no painel.
+ */
+export const solicitarAcesso = createServerFn({ method: "POST" })
+  .inputValidator(solicitacaoSchema)
+  .handler(async ({ data }) => {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return {
+        ok: false,
+        error:
+          "Entrada indisponível: o servidor está sem SUPABASE_SERVICE_ROLE_KEY. " +
+          "Configure a variável no painel da hospedagem. Diagnóstico: /api/health",
+      };
+    }
+
+    const db = getDb();
+    const email = normalizeEmail(data.email);
+    const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
+    const ua = getRequestHeader("user-agent") ?? "unknown";
+    const deviceHash = deviceKeyHash(data.deviceKey);
+
+    // ── 1) Dispositivo já liberado? Entra direto ──────────────────────────
+    const { data: acesso } = await db
+      .from("user_access")
+      .select("id, email, access_code, expires_at, status, device_limit")
+      .eq("email", email)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (acesso) {
+      if (acesso.status === "deleted") {
+        return {
+          ok: false,
+          status: "deleted" as const,
+          error:
+            "Sua conta foi encerrada. Fale com o administrador pelo WhatsApp para renovar.",
+        };
+      }
+      if (acesso.status === "revoked") {
+        return {
+          ok: false,
+          status: "revoked" as const,
+          error: "Seu acesso foi revogado. Somente o administrador pode reativar.",
+        };
+      }
+
+      const { data: dispositivo } = await db
+        .from("access_device_sessions")
+        .select("id")
+        .eq("access_id", acesso.id)
+        .eq("device_key_hash", deviceHash)
+        .eq("active", true)
+        .maybeSingle();
+
+      if (dispositivo) {
+        const sessionToken = await abrirSessaoDoCliente(acesso, dispositivo.id);
+        try {
+          await db
+            .from("access_device_sessions")
+            .update({
+              session_token_hash: deviceKeyHash(sessionToken),
+              session_expires_at: acesso.expires_at,
+              last_seen_at: new Date().toISOString(),
+              last_ip: ip,
+            })
+            .eq("id", dispositivo.id);
+        } catch {
+          /* best-effort */
+        }
+        await logSecurity("access_auto_login", true);
+        return { ok: true, status: "approved" as const, redirectTo: "/app" };
+      }
+    }
+
+    // ── 2) Anti-abuso: no máximo 3 pedidos por IP por hora ────────────────
+    try {
+      const { count } = await db
+        .from("access_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("ip", ip)
+        .gte("requested_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
+      if ((count ?? 0) >= PEDIDO_MAX_POR_IP_HORA) {
+        return {
+          ok: false,
+          status: "rate_limited" as const,
+          error: "Muitos pedidos deste dispositivo. Aguarde uma hora e tente novamente.",
+        };
+      }
+    } catch {
+      /* tabela pode não existir ainda — segue e o insert acusa */
+    }
+
+    // ── 3) Já existe pedido pendente igual? Reaproveita ───────────────────
+    const { data: pendente } = await db
+      .from("access_requests")
+      .select("id, expires_at")
+      .eq("email", email)
+      .eq("device_key_hash", deviceHash)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (pendente) {
+      return {
+        ok: true,
+        status: "pending" as const,
+        requestId: pendente.id,
+        expiresAt: pendente.expires_at,
+      };
+    }
+
+    // ── 4) Cria o pedido ──────────────────────────────────────────────────
+    const { data: criado, error } = await db
+      .from("access_requests")
+      .insert({ email, device_key_hash: deviceHash, user_agent: ua, ip })
+      .select("id, expires_at")
+      .single();
+
+    if (error || !criado) {
+      console.error("[acesso] falha ao criar pedido:", error);
+      return {
+        ok: false,
+        error:
+          "Não foi possível registrar o pedido. O administrador precisa rodar a migração " +
+          "access_requests no banco (veja sql de instalação).",
+      };
+    }
+
+    await logSecurity("access_request_created", true);
+    return {
+      ok: true,
+      status: "pending" as const,
+      requestId: criado.id,
+      expiresAt: criado.expires_at,
+      validadeMinutos: PEDIDO_VALIDADE_MINUTOS,
+    };
+  });
+
+/**
+ * O cliente aguarda a decisão (consulta a cada 3 segundos).
+ * Quando aprovado, abre a sessão e libera a entrada.
+ */
+export const consultarPedido = createServerFn({ method: "POST" })
+  .inputValidator(consultaPedidoSchema)
+  .handler(async ({ data }) => {
+    const db = getDb();
+    const { data: pedido } = await db
+      .from("access_requests")
+      .select("id, email, status, access_id, session_token_hash, expires_at, plan_code")
+      .eq("id", data.requestId)
+      .maybeSingle();
+
+    if (!pedido) return { status: "expired" as const };
+
+    if (pedido.status === "pending" && new Date(pedido.expires_at) < new Date()) {
+      await db.from("access_requests").update({ status: "expired" }).eq("id", pedido.id);
+      return { status: "expired" as const };
+    }
+
+    if (pedido.status === "denied") return { status: "denied" as const };
+    if (pedido.status === "expired") return { status: "expired" as const };
+    if (pedido.status !== "approved") return { status: "pending" as const };
+
+    // Aprovado: abre a sessão deste dispositivo
+    const { data: acesso } = await db
+      .from("user_access")
+      .select("id, email, access_code, expires_at")
+      .eq("id", pedido.access_id)
+      .maybeSingle();
+
+    if (!acesso) return { status: "denied" as const };
+
+    await abrirSessaoDoCliente(acesso);
+    await logSecurity("access_request_session_started", true);
+    return { status: "approved" as const, redirectTo: "/app" };
+  });
+
+/** Painel: lista os pedidos pendentes. */
+export const listarPedidos = createServerFn({ method: "GET" }).handler(async () => {
+  await requireAdminSession();
+  const db = getDb();
+
+  try {
+    await db.rpc("expirar_pedidos");
+  } catch {
+    /* função pode não existir ainda */
+  }
+
+  const { data, error } = await db
+    .from("access_requests")
+    .select("id, email, user_agent, ip, requested_at, expires_at")
+    .eq("status", "pending")
+    .order("requested_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    return { requests: [], tabelaAusente: true, erro: error.message };
+  }
+
+  // Marca quem já é cliente e quem é e-mail novo — isso muda a decisão do admin
+  const emails: string[] = Array.from(
+    new Set<string>((data ?? []).map((r: any) => String(r.email))),
+  );
+  const { data: existentes } = emails.length
+    ? await db
+        .from("user_access")
+        .select("email, status, expires_at, plan_code")
+        .in("email", emails)
+    : { data: [] as any[] };
+
+  const mapa = new Map<string, any>(
+    (existentes ?? []).map((e: any) => [e.email, e]),
+  );
+
+  return {
+    requests: (data ?? []).map((r: any) => ({
+      ...r,
+      clienteExistente: mapa.get(r.email) ?? null,
+    })),
+    tabelaAusente: false,
+    erro: null,
+  };
+});
+
+/** Painel: libera (com plano) ou recusa um pedido. */
+export const decidirPedido = createServerFn({ method: "POST" })
+  .inputValidator(decisaoPedidoSchema)
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    const db = getDb();
+
+    const { data: pedido } = await db
+      .from("access_requests")
+      .select("*")
+      .eq("id", data.requestId)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (!pedido) throw new Error("Pedido não encontrado ou já decidido.");
+
+    if (data.action === "deny") {
+      await db
+        .from("access_requests")
+        .update({
+          status: "denied",
+          decided_at: new Date().toISOString(),
+          decided_by: "admin",
+        })
+        .eq("id", pedido.id);
+      await logSecurity("access_request_denied", true);
+      return { ok: true, denied: true as const };
+    }
+
+    const days = data.durationDays ?? planDurationDays(data.planCode);
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    const accessCode = generateAccessCode();
+
+    const { data: existente } = await db
+      .from("user_access")
+      .select("id")
+      .eq("email", pedido.email)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let accessId: string;
+    if (existente) {
+      const { error } = await db
+        .from("user_access")
+        .update({
+          status: "active",
+          expires_at: expiresAt,
+          plan_code: data.planCode,
+          device_limit: data.deviceLimit,
+          access_code: accessCode,
+          active_session_token: null,
+          active_session_started_at: null,
+          active_session_ip: null,
+          active_session_user_agent: null,
+        })
+        .eq("id", existente.id);
+      if (error) throw new Error("Não foi possível atualizar o acesso.");
+      accessId = existente.id;
+    } else {
+      const { data: novo, error } = await db
+        .from("user_access")
+        .insert({
+          email: pedido.email,
+          access_code: accessCode,
+          status: "active",
+          expires_at: expiresAt,
+          plan_code: data.planCode,
+          device_limit: data.deviceLimit,
+        })
+        .select("id")
+        .single();
+      if (error || !novo) throw new Error("Não foi possível criar o acesso.");
+      accessId = novo.id;
+    }
+
+    // Amarra o dispositivo que pediu — é ele que entra
+    const sessionToken = randomUUID();
+    const dispositivo = {
+      access_id: accessId,
+      device_key_hash: pedido.device_key_hash,
+      device_type: "browser",
+      label: (pedido.user_agent ?? "").slice(0, 180),
+      user_agent: pedido.user_agent,
+      last_ip: pedido.ip,
+      active: true,
+      last_seen_at: new Date().toISOString(),
+      revoked_at: null,
+    };
+
+    const upsert = await db
+      .from("access_device_sessions")
+      .upsert(
+        {
+          ...dispositivo,
+          session_token_hash: deviceKeyHash(sessionToken),
+          session_expires_at: expiresAt,
+        },
+        { onConflict: "access_id,device_key_hash,device_type" },
+      );
+
+    if (upsert.error && isSchemaDriftError(upsert.error)) {
+      await db.from("access_device_sessions").insert(dispositivo);
+    }
+
+    await db
+      .from("access_requests")
+      .update({
+        status: "approved",
+        decided_at: new Date().toISOString(),
+        decided_by: "admin",
+        access_id: accessId,
+        session_token_hash: sessionToken,
+        plan_code: data.planCode,
+      })
+      .eq("id", pedido.id);
+
+    try {
+      await sendAccessEmail({
+        email: pedido.email,
+        accessCode,
+        expiresAt,
+        planLabel: planLabel(data.planCode),
+      });
+    } catch {
+      await logSecurity("access_request_email_error", false);
+    }
+
+    await logSecurity("access_request_approved", true);
+    return {
+      ok: true,
+      denied: false as const,
+      email: pedido.email,
+      accessCode,
+      expiresAt,
+      planCode: data.planCode,
+    };
   });

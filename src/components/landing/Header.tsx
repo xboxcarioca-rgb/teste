@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, Users, MessageCircle, Shirt, Gift } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { TrialSignupDialog } from "@/components/landing/TrialSignupDialog";
 import { brandWordmarkUrl, brandWordmark2xUrl } from "@/lib/brand";
 
 export function Header({ affiliateMode = false }: { affiliateMode?: boolean } = {}) {
@@ -58,18 +57,19 @@ export function Header({ affiliateMode = false }: { affiliateMode?: boolean } = 
                   Afiliados
                 </Link>
               </Button>
-              <TrialSignupDialog
-                trigger={
-                  <Button size="icon" className="size-11 sm:h-9 sm:w-auto sm:px-3">
-                    <Gift className="h-4 w-4" />
-                    <span className="hidden sm:inline">Teste grátis 7 dias</span>
-                  </Button>
-                }
-              />
+              {/* Antes este botão criava o acesso automaticamente (sem passar pelo
+                  administrador). Agora ele leva ao pedido de acesso, que aparece no
+                  painel para liberação. */}
+              <Button asChild size="icon" className="size-11 sm:h-9 sm:w-auto sm:px-3">
+                <Link to="/login" search={{ email: "" }}>
+                  <Gift className="h-4 w-4" />
+                  <span className="hidden sm:inline">Teste grátis 7 dias</span>
+                </Link>
+              </Button>
             </>
           )}
           <Button asChild variant="outline" size="icon" className="size-11 sm:h-9 sm:w-auto sm:px-3">
-            <Link to="/login" search={{ code: "", email: "", expired: "" }}>
+            <Link to="/login" search={{ email: "" }}>
               <span className="hidden sm:inline">Acessar</span>
               <ArrowUpRight className="h-4 w-4" />
             </Link>
